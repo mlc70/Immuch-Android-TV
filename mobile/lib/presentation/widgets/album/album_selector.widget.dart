@@ -341,7 +341,7 @@ class _SortButtonState extends ConsumerState<_SortButton> {
               final chosen = await showDialog<AlbumSortMode>(
                 context: context,
                 builder: (dialogContext) => SimpleDialog(
-                  title: Text(context.t.sort),
+                  title: const Text('Sort albums'),
                   children: [
                     for (final mode in AlbumSortMode.values)
                       SimpleDialogOption(
