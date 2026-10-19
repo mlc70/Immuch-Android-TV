@@ -334,7 +334,32 @@ class _SortButtonState extends ConsumerState<_SortButton> {
           .toList(),
       builder: (context, controller, child) {
         return RemoteFocusable(
-          onTap: () {
+          onTap: () async {
+            if (MediaQuery.navigationModeOf(context) == NavigationMode.directional) {
+              // A route-backed dialog confines D-pad focus to sorting choices.
+              // The album grid underneath cannot intercept Up/Down.
+              final chosen = await showDialog<AlbumSortMode>(
+                context: context,
+                builder: (dialogContext) => SimpleDialog(
+                  title: Text(context.t.sort),
+                  children: [
+                    for (final mode in AlbumSortMode.values)
+                      SimpleDialogOption(
+                        key: ValueKey('tv_album_sort_${mode.name}'),
+                        onPressed: () => Navigator.of(dialogContext).pop(mode),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Text(mode.label(context.t)),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+              if (chosen != null && mounted) {
+                await onMenuTapped(chosen);
+              }
+              return;
+            }
             if (controller.isOpen) {
               controller.close();
             } else {
