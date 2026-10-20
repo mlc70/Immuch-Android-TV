@@ -24,6 +24,16 @@ Rationale: in upstream `asset_viewer.page.dart`, Up/Down currently reveal and fo
 - Five-button remote support is mandatory: standard D-pad, OK and Back; never require channel/zoom/mouse keys.
 - Preserve smooth large-image rendering by applying transforms to existing rendered photo widget rather than requesting the source asset again for each step.
 
+## Photo date/time label (TV UI change)
+
+Source: `mobile/lib/presentation/widgets/asset_viewer/viewer_top_app_bar.widget.dart` currently uses `NavigationToolbar(centerMiddle: true, middle: _AssetInfoTitle(asset: asset))`. This places the photo date/time in the **top center** whenever the toolbar is visible. The current Viewer settings (and `ViewerConfig`) offer no positioning/visibility preference.
+
+**Proposed TV default**: move the compact date/time display to a lower-left safe-margin overlay, visible only while photo controls are shown, to leave the top center of the image clear. It should be non-focusable so it never intercepts remote inputs. If that area overlaps future photo controls, use a dedicated left-aligned metadata row instead.
+
+**Proposed setting**: TV Photo Info Overlay = `Bottom left` (default), `Off`; consider adding `Top left` only if useful. Keep the existing phone/tablet centered toolbar unchanged. Test against TV overscan margins, portrait/landscape images and with full-screen/hidden controls.
+
+**Status:** confirmed existing position and absence of preference by source review; preferred new placement should be finalized during TV hardware review before implementing.
+
 ## Video viewer (playing)
 
 - D-pad Left/Right continue seeking backward/forward; don't change paused-video behavior without further agreement.
