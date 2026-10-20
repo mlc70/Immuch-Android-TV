@@ -1,0 +1,96 @@
+name: Android TV Test APK
+
+# A standalone build for our Android TV development branch.
+# Unlike the inherited mobile release workflows, this needs no signing secrets
+# or upstream self-hosted runners.
+on:
+  push:
+    branches:
+      - feature/tv-dpad-navigation
+    paths:
+      - 'mobile/**'
+      - 'native/**'
+      - 'open-api/**'
+      - 'i18n/**'
+      - 'mise.toml'
+      - '.github/workflows/android-tv-test-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-tv-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: Build Android TV test APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      MISE_YES: '1'
+      MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
+      # The existing Gradle config appends ".pr1" to the Android package
+      # and uses the debug signing key if no release keystore exists.
+      # This allows installation alongside the normal Immuch360 app.
+      PR_NUMBER: '1'
+
+    steps:
+      - name: Check out development code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install mise
+        uses: jdx/mise-action@v2
+        with:
+          install: false
+          cache: true
+
+      - name: Install required toolchains
+        run: |
+          mise install node java "npm:@openapitools/openapi-generator-cli"
+          cd mobile
+          mise install
+          mise exec -- flutter --version
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platforms;android-36 build-tools;36.0.0'
+
+      - name: Install Flutter dependencies and generate code
+        run: |
+          mise //mobile:install:ci
+          mise //mobile:codegen
+
+      - name: Build independently installable release APK
+        working-directory: mobile
+        run: mise exec -- flutter build apk --release --flavor phone
+
+      - name: Stage test APK
+        run: |
+          mkdir -p dist
+          cp mobile/build/app/outputs/flutter-apk/app-phone-release.apk dist/Immuch-Android-TV-test.apk
+          sha256sum dist/Immuch-Android-TV-test.apk
+
+      - name: Upload APK for testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: Immuch-Android-TV-test-APK
+          path: dist/Immuch-Android-TV-test.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Installation instructions
+        if: success()
+        run: |
+          echo '### Android TV test APK built successfully' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Download **Immuch-Android-TV-test-APK** from the Artifacts section of this workflow run.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Unzip it and install the included **Immuch-Android-TV-test.apk**.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'The test package uses the existing .pr1 application ID suffix and a development signing key.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'It should install alongside normal Immuch360, not replace it.' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: ${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"
