@@ -53,6 +53,7 @@ class ViewerTopAppBar extends ConsumerWidget implements PreferredSizeWidget {
     final isInLockedView = ref.watch(inLockedViewProvider);
     // The read only mode, or a TV, where the app is a viewer: the favourite and the menu (cast among others) hide
     final isViewOnly = ref.watch(viewOnlyProvider);
+    final isTvPhoto = ref.watch(tvModeProvider) && asset.isImage;
 
     final showingDetails = ref.watch(assetViewerProvider.select((state) => state.showingDetails));
 
@@ -174,7 +175,7 @@ class ViewerTopAppBar extends ConsumerWidget implements PreferredSizeWidget {
                     child: NavigationToolbar(
                       centerMiddle: true,
                       leading: const _AppBarBackButton(),
-                      middle: showingDetails ? null : _AssetInfoTitle(asset: asset),
+                      middle: showingDetails || isTvPhoto ? null : ViewerAssetDateTime(asset: asset),
                       trailing:
                           !showingDetails &&
                               (!isViewOnly ||
@@ -255,10 +256,12 @@ class _AppBarBackButton extends ConsumerWidget {
   }
 }
 
-class _AssetInfoTitle extends ConsumerWidget {
+class ViewerAssetDateTime extends ConsumerWidget {
   final BaseAsset asset;
 
-  const _AssetInfoTitle({required this.asset});
+  const ViewerAssetDateTime({super.key, required this.asset, this.alignLeft = false});
+
+  final bool alignLeft;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -272,6 +275,7 @@ class _AssetInfoTitle extends ConsumerWidget {
 
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: alignLeft ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: [
         Text(dateFormatted, style: context.textTheme.labelLarge?.copyWith(color: Colors.white)),
         Text(timeFormatted, style: context.textTheme.labelMedium?.copyWith(color: Colors.white70)),
