@@ -399,15 +399,24 @@ class SearchPage extends HookConsumerWidget {
         search(filter.value.copyWith(mediaType: mediaType));
       }
 
+      // TV needs more height than the default half-screen bottom sheet:
+      // the radio choices and Clear/Apply were otherwise cut off by overscan.
+      // Use the same D-pad action rail as the working People filter.
+      final isTv = MediaQuery.navigationModeOf(context) == NavigationMode.directional;
+      final picker = FilterBottomSheetScaffold(
+        title: context.t.search_filter_media_type_title,
+        expanded: isTv,
+        tvActionRail: isTv,
+        onSearch: handleApply,
+        onClear: handleClear,
+        child: MediaTypePicker(onSelect: handleOnSelected, filter: filter.value.mediaType),
+      );
+
       unawaited(
         showFilterBottomSheet(
           context: context,
-          child: FilterBottomSheetScaffold(
-            title: context.t.search_filter_media_type_title,
-            onSearch: handleApply,
-            onClear: handleClear,
-            child: MediaTypePicker(onSelect: handleOnSelected, filter: filter.value.mediaType),
-          ),
+          isScrollControlled: isTv,
+          child: isTv ? FractionallySizedBox(heightFactor: 0.8, child: picker) : picker,
         ),
       );
     }
