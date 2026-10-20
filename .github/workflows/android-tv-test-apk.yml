@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - feature/tv-dpad-navigation
+      - feature/tv-photo-date-overlay
     paths:
       - 'mobile/**'
       - 'native/**'
@@ -34,7 +35,7 @@ jobs:
       # The existing Gradle config appends ".pr1" to the Android package
       # and uses the debug signing key if no release keystore exists.
       # This allows installation alongside the normal Immuch360 app.
-      PR_NUMBER: '1'
+      PR_NUMBER: ${{ github.ref_name == 'feature/tv-photo-date-overlay' && '2' || '1' }}
 
     steps:
       - name: Check out development code
@@ -64,6 +65,11 @@ jobs:
         run: |
           mise //mobile:install:ci
           mise //mobile:codegen
+
+      - name: Test persisted TV photo-date preference
+        if: github.ref_name == 'feature/tv-photo-date-overlay'
+        working-directory: mobile
+        run: mise exec -- flutter test test/domain/models/config/tv_photo_date_setting_test.dart
 
       - name: Build independently installable release APK
         working-directory: mobile
