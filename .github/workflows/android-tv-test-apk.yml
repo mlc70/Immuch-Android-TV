@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - feature/tv-dpad-navigation
+      - feature/tv-all-search-filters
     paths:
       - 'mobile/**'
       - 'native/**'
@@ -31,10 +32,10 @@ jobs:
     env:
       MISE_YES: '1'
       MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
-      # The existing Gradle config appends ".pr1" to the Android package
+      # The existing Gradle config appends an independent .prN suffix to the Android package
       # and uses the debug signing key if no release keystore exists.
       # This allows installation alongside the normal Immuch360 app.
-      PR_NUMBER: '1'
+      PR_NUMBER: ${{ github.ref_name == 'feature/tv-all-search-filters' && '3' || '1' }}
 
     steps:
       - name: Check out development code
@@ -65,6 +66,16 @@ jobs:
           mise //mobile:install:ci
           mise //mobile:codegen
 
+      - name: Test Search filter TV navigation
+        if: github.ref_name == 'feature/tv-all-search-filters'
+        working-directory: mobile
+        run: mise exec -- flutter test test/widgets/search/search_filter/filter_bottom_sheet_scaffold_tv_test.dart
+
+      - name: Analyze modified Search filters
+        if: github.ref_name == 'feature/tv-all-search-filters'
+        working-directory: mobile
+        run: mise exec -- dart analyze lib/widgets/search/search_filter lib/presentation/pages/search/search.page.dart
+
       - name: Build independently installable release APK
         working-directory: mobile
         run: mise exec -- flutter build apk --release --flavor phone
@@ -90,7 +101,7 @@ jobs:
           echo '' >> "$GITHUB_STEP_SUMMARY"
           echo 'Download **Immuch-Android-TV-test-APK** from the Artifacts section of this workflow run.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Unzip it and install the included **Immuch-Android-TV-test.apk**.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'The test package uses the existing .pr1 application ID suffix and a development signing key.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'The test package uses the PR_NUMBER application ID suffix and a development signing key.' >> "$GITHUB_STEP_SUMMARY"
           echo 'It should install alongside normal Immuch360, not replace it.' >> "$GITHUB_STEP_SUMMARY"
           echo '' >> "$GITHUB_STEP_SUMMARY"
           echo "Commit: ${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"
