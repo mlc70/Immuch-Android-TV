@@ -189,6 +189,7 @@ class SearchPage extends HookConsumerWidget {
             heightFactor: 0.8,
             child: FilterBottomSheetScaffold(
               title: context.t.search_filter_tags_title,
+              tvActionRail: true,
               expanded: true,
               onSearch: handleApply,
               onClear: handleClear,
@@ -233,6 +234,7 @@ class SearchPage extends HookConsumerWidget {
           isDismissible: true,
           child: FilterBottomSheetScaffold(
             title: context.t.search_filter_location_title,
+            tvActionRail: true,
             onSearch: handleApply,
             onClear: handleClear,
             child: Padding(
@@ -278,6 +280,7 @@ class SearchPage extends HookConsumerWidget {
           isDismissible: true,
           child: FilterBottomSheetScaffold(
             title: context.t.search_filter_camera_title,
+            tvActionRail: true,
             onSearch: handleApply,
             onClear: handleClear,
             child: Padding(
@@ -358,6 +361,7 @@ class SearchPage extends HookConsumerWidget {
           context: context,
           child: FilterBottomSheetScaffold(
             title: context.t.pick_date_range,
+            tvActionRail: true,
             expanded: true,
             onClear: () => datePicked(null),
             child: QuickDatePicker(
@@ -399,24 +403,17 @@ class SearchPage extends HookConsumerWidget {
         search(filter.value.copyWith(mediaType: mediaType));
       }
 
-      // TV needs more height than the default half-screen bottom sheet:
-      // the radio choices and Clear/Apply were otherwise cut off by overscan.
-      // Use the same D-pad action rail as the working People filter.
-      final isTv = MediaQuery.navigationModeOf(context) == NavigationMode.directional;
-      final picker = FilterBottomSheetScaffold(
-        title: context.t.search_filter_media_type_title,
-        expanded: isTv,
-        tvActionRail: isTv,
-        onSearch: handleApply,
-        onClear: handleClear,
-        child: MediaTypePicker(onSelect: handleOnSelected, filter: filter.value.mediaType),
-      );
-
       unawaited(
         showFilterBottomSheet(
           context: context,
-          isScrollControlled: isTv,
-          child: isTv ? FractionallySizedBox(heightFactor: 0.8, child: picker) : picker,
+          // The shared bottom-sheet utility now provides the TV-sized viewport.
+          child: FilterBottomSheetScaffold(
+            title: context.t.search_filter_media_type_title,
+            tvActionRail: true,
+            onSearch: handleApply,
+            onClear: handleClear,
+            child: MediaTypePicker(onSelect: handleOnSelected, filter: filter.value.mediaType),
+          ),
         ),
       );
     }
@@ -447,6 +444,7 @@ class SearchPage extends HookConsumerWidget {
           isScrollControlled: true,
           child: FilterBottomSheetScaffold(
             title: context.t.rating,
+            tvActionRail: true,
             onSearch: handleApply,
             onClear: handleClear,
             child: StarRatingPicker(onSelect: handleOnSelected, filter: filter.value.rating),
@@ -493,6 +491,7 @@ class SearchPage extends HookConsumerWidget {
           context: context,
           child: FilterBottomSheetScaffold(
             title: context.t.display_options,
+            tvActionRail: true,
             onSearch: handleApply,
             onClear: handleClear,
             child: DisplayOptionPicker(onSelect: handleOnSelect, filter: filter.value.display),
