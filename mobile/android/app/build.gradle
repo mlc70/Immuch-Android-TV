@@ -100,11 +100,20 @@ android {
       proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
       versionNameSuffix "-immuch360"
 
-      def prNumber = System.getenv("PR_NUMBER")
-      if (prNumber) {
-        applicationIdSuffix ".pr${prNumber}"
-        versionNameSuffix "-pr${prNumber}"
-        resValue "string", "app_name", "Immich PR ${prNumber}"
+      // Our TV test APK has one identity across feature branches. When the CI
+      // signing key is stable, installing the next APK preserves the existing
+      // Immich server configuration and authenticated session.
+      if (System.getenv("IMMUCH_TV_TEST_BUILD") == "true") {
+        applicationIdSuffix ".tvtest"
+        versionNameSuffix "-tvtest"
+        resValue "string", "app_name", "Immuch TV Test"
+      } else {
+        def prNumber = System.getenv("PR_NUMBER")
+        if (prNumber) {
+          applicationIdSuffix ".pr${prNumber}"
+          versionNameSuffix "-pr${prNumber}"
+          resValue "string", "app_name", "Immich PR ${prNumber}"
+        }
       }
     }
   }
