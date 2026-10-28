@@ -1,0 +1,138 @@
+name: Android TV Test APK
+
+# A standalone build for our Android TV development branch.
+# Unlike the inherited mobile release workflows, this needs no signing secrets
+# or upstream self-hosted runners.
+on:
+  push:
+    branches:
+      - feature/tv-search-navigation-upstream-20261027
+    paths:
+      - 'mobile/**'
+      - 'native/**'
+      - 'open-api/**'
+      - 'i18n/**'
+      - 'mise.toml'
+      - '.github/workflows/android-tv-test-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-tv-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: Build Android TV test APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      MISE_YES: '1'
+      MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
+      # Stable identity: com.aprogsys.immuch360.tvtest
+      # Stable signature: provided by optional Actions secrets (see docs below).
+      IMMUCH_TV_TEST_BUILD: 'true'
+
+    steps:
+      - name: Check out development code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install mise
+        uses: jdx/mise-action@v2
+        with:
+          install: false
+          cache: true
+
+      - name: Install required toolchains
+        run: |
+          mise install node java "npm:@openapitools/openapi-generator-cli"
+          cd mobile
+          mise install
+          mise exec -- flutter --version
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platforms;android-36 build-tools;36.0.0'
+
+      - name: Configure persistent signing for test upgrades
+        env:
+          TV_TEST_KEYSTORE_BASE64: ${{ secrets.TV_TEST_KEYSTORE_BASE64 }}
+          TV_TEST_KEYSTORE_PASSWORD: ${{ secrets.TV_TEST_KEYSTORE_PASSWORD }}
+        run: |
+          if [[ -z "$TV_TEST_KEYSTORE_BASE64" && -z "$TV_TEST_KEYSTORE_PASSWORD" ]]; then
+            echo "::warning::Persistent test signing is not configured. The APK can be installed, but later builds may require uninstalling it (losing login data)."
+            echo "TV_TEST_SIGNING_MODE=temporary" >> "$GITHUB_ENV"
+          elif [[ -z "$TV_TEST_KEYSTORE_BASE64" || -z "$TV_TEST_KEYSTORE_PASSWORD" ]]; then
+            echo "::error::Both TV_TEST_KEYSTORE_BASE64 and TV_TEST_KEYSTORE_PASSWORD must be configured together."
+            exit 1
+          else
+            printf '%s' "$TV_TEST_KEYSTORE_BASE64" | base64 --decode > mobile/android/key.jks
+            test -s mobile/android/key.jks
+            mise exec -- keytool -list -keystore mobile/android/key.jks -alias tvtest -storepass "$TV_TEST_KEYSTORE_PASSWORD" >/dev/null
+            echo "ALIAS=tvtest" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_PASSWORD=$TV_TEST_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "ANDROID_STORE_PASSWORD=$TV_TEST_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "TV_TEST_SIGNING_MODE=persistent" >> "$GITHUB_ENV"
+          fi
+
+      - name: Install Flutter dependencies and generate code
+        run: |
+          mise //mobile:install:ci
+          mise //mobile:codegen
+
+      - name: Test upstream TV choice dialogs and Search navigation fixes
+        working-directory: mobile
+        run: |
+          mise exec -- flutter test \
+            test/widgets/search/search_filter/search_dropdown_tv_test.dart \
+            test/pages/common/tab_shell_tv_test.dart \
+            test/presentation/widgets/search/tv_date_range_picker_test.dart \
+            test/presentation/widgets/tv/tv_text_entry_test.dart
+
+      - name: Analyze Search and TV changes
+        working-directory: mobile
+        run: |
+          mise exec -- dart analyze \
+            lib/pages/common/tab_shell.page.dart \
+            lib/presentation/pages/search/search.page.dart \
+            lib/presentation/widgets/search/tv_date_range_picker.dart \
+            lib/presentation/widgets/album/album_selector.widget.dart \
+            lib/widgets/common/search_field.dart \
+            lib/providers/search/tv_search_navigation.provider.dart
+
+      - name: Build independently installable release APK
+        working-directory: mobile
+        run: mise exec -- flutter build apk --release --flavor phone
+
+      - name: Stage test APK
+        run: |
+          mkdir -p dist
+          cp mobile/build/app/outputs/flutter-apk/app-phone-release.apk dist/Immuch-Android-TV-test.apk
+          sha256sum dist/Immuch-Android-TV-test.apk
+
+      - name: Upload APK for testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: Immuch-Android-TV-test-APK
+          path: dist/Immuch-Android-TV-test.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Installation instructions
+        if: success()
+        run: |
+          echo '### Android TV test APK built successfully' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Download **Immuch-Android-TV-test-APK** from the Artifacts section of this workflow run.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Unzip it and install the included **Immuch-Android-TV-test.apk**.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'The package is **com.aprogsys.immuch360.tvtest**, label **Immuch TV Test**.' >> "$GITHUB_STEP_SUMMARY"
+          echo "Signing mode: **${TV_TEST_SIGNING_MODE}**" >> "$GITHUB_STEP_SUMMARY"
+          echo 'To preserve login on later builds, configure the two TV_TEST signing secrets and always update this same package.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'It should install alongside normal Immuch360, not replace it.' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: ${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"
