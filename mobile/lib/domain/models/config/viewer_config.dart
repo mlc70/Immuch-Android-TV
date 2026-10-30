@@ -11,6 +11,8 @@ abstract class ViewerConfig with _$ViewerConfig {
     @Default(false) bool loadOriginalVideo,
     @Default(true) bool autoPlayVideo,
     @Default(false) bool tapToNavigate,
+    // TV only: photo date/time is bottom-left when controls are visible.
+    @Default(true) bool tvShowDateTime,
 
     /// Experimental Spatial 2.5D player for stereoscopic videos on phones, off by default
     @Default(true) bool spatial25d,
