@@ -8,6 +8,7 @@ on:
     branches:
       - feature/tv-dpad-navigation
       - feature/tv-all-search-filters
+      - feature/tv-combined-test
     paths:
       - 'mobile/**'
       - 'native/**'
@@ -87,7 +88,7 @@ jobs:
           mise //mobile:codegen
 
       - name: Test Search filter TV navigation
-        if: github.ref_name == 'feature/tv-all-search-filters'
+        if: github.ref_name == 'feature/tv-all-search-filters' || github.ref_name == 'feature/tv-combined-test' || github.ref_name == 'feature/tv-combined-test'
         working-directory: mobile
         run: mise exec -- flutter test test/widgets/search/search_filter/filter_bottom_sheet_scaffold_tv_test.dart
 
@@ -96,21 +97,31 @@ jobs:
         working-directory: mobile
         run: mise exec -- dart analyze lib/widgets/search/search_filter lib/presentation/pages/search/search.page.dart
 
+      - name: Test photo date/time preference
+        if: github.ref_name == 'feature/tv-combined-test'
+        working-directory: mobile
+        run: mise exec -- flutter test test/domain/models/config/tv_photo_date_setting_test.dart
+
       - name: Build independently installable release APK
         working-directory: mobile
-        run: mise exec -- flutter build apk --release --flavor phone
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == "feature/tv-combined-test" ]]; then
+            mise exec -- flutter build apk --release --flavor phone --build-name "3.3.0-tv.${GITHUB_RUN_NUMBER}" --build-number "$((3030021 + GITHUB_RUN_NUMBER))"
+          else
+            mise exec -- flutter build apk --release --flavor phone
+          fi
 
       - name: Stage test APK
         run: |
           mkdir -p dist
-          cp mobile/build/app/outputs/flutter-apk/app-phone-release.apk dist/Immuch-Android-TV-test.apk
-          sha256sum dist/Immuch-Android-TV-test.apk
+          cp mobile/build/app/outputs/flutter-apk/app-phone-release.apk "dist/Immuch-TV-combined-r${GITHUB_RUN_NUMBER}.apk"
+          sha256sum dist/*.apk
 
       - name: Upload APK for testing
         uses: actions/upload-artifact@v4
         with:
-          name: Immuch-Android-TV-test-APK
-          path: dist/Immuch-Android-TV-test.apk
+          name: Immuch-TV-Combined-r${{ github.run_number }}
+          path: dist/*.apk
           if-no-files-found: error
           retention-days: 14
 
@@ -119,11 +130,11 @@ jobs:
         run: |
           echo '### Android TV test APK built successfully' >> "$GITHUB_STEP_SUMMARY"
           echo '' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Download **Immuch-Android-TV-test-APK** from the Artifacts section of this workflow run.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Unzip it and install the included **Immuch-Android-TV-test.apk**.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'The package is **com.aprogsys.immuch360.tvtest**, label **Immuch TV Test**.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Download **Immuch-TV-Combined-r${{ github.run_number }}** from the Artifacts section of this run.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Unzip it and install **Immuch-TV-combined-r${GITHUB_RUN_NUMBER}.apk**.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'The package is **com.aprogsys.immuch360.tvtest**, label **Immuch TV Test**. Build number is identified by run ${GITHUB_RUN_NUMBER}.' >> "$GITHUB_STEP_SUMMARY"
           echo "Signing mode: **${TV_TEST_SIGNING_MODE}**" >> "$GITHUB_STEP_SUMMARY"
-          echo 'To preserve login on later builds, configure the two TV_TEST signing secrets and always update this same package.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'If signing mode is temporary, uninstall any existing **Immuch TV Test** before installing this build; this removes its saved login.' >> "$GITHUB_STEP_SUMMARY"
           echo 'It should install alongside normal Immuch360, not replace it.' >> "$GITHUB_STEP_SUMMARY"
           echo '' >> "$GITHUB_STEP_SUMMARY"
           echo "Commit: ${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"
