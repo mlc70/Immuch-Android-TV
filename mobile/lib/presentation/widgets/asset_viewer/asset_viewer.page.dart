@@ -27,6 +27,7 @@ import 'package:immich_mobile/providers/cast.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/current_album.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/timeline.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/tv.provider.dart';
+import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/utils/system_ui.utils.dart';
 import 'package:immich_mobile/widgets/photo_view/photo_view.dart';
 
@@ -578,6 +579,8 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
     });
 
     final tvMode = ref.watch(tvModeProvider);
+    final showTvPhotoDateTime = ref.watch(appConfigProvider.select((config) => config.viewer.tvShowDateTime));
+    final currentAsset = ref.watch(assetViewerProvider.select((s) => s.currentAsset));
     const topBar = ViewerTopAppBar();
 
     final viewer = AnnotatedRegion(
@@ -626,6 +629,30 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
                 ),
               ),
             ),
+            // TV: keep photo metadata readable but out of the middle of the image.
+            // The normal mobile/desktop title is left unchanged, and the date disappears with the controls.
+            if (tvMode && showTvPhotoDateTime && showingControls && !showingDetails && currentAsset?.isImage == true)
+              Positioned(
+                left: 0,
+                bottom: 64,
+                child: SafeArea(
+                  top: false,
+                  right: false,
+                  minimum: const EdgeInsets.only(left: 16, bottom: 8),
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: ViewerAssetDateTime(asset: currentAsset!, alignLeft: true),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             // Immuch360 Desktop: previous and next for the mouse, which cannot swipe (desktop/window/hover_chevrons.dart)
             if (CurrentPlatform.isDesktop && !showingDetails)
               DesktopPageChevrons(
