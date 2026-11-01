@@ -7,6 +7,7 @@ import 'package:immich_mobile/extensions/asyncvalue_extensions.dart';
 import 'package:immich_mobile/extensions/build_context_extensions.dart';
 import 'package:immich_mobile/generated/translations.g.dart';
 import 'package:immich_mobile/widgets/common/search_field.dart';
+import 'package:immich_mobile/presentation/widgets/tv/tv_filter_list.dart';
 
 String _trimSlashes(String s) => s.replaceAll(RegExp(r'^/+|/+$'), '');
 
@@ -117,6 +118,18 @@ class TagPicker extends HookConsumerWidget {
                   trimmedQuery.isNotEmpty &&
                   !tags.any((t) => t.value.toLowerCase() == trimmedQuery.toLowerCase());
               final isCreateSelected = selectedNewTagValues.value.contains(trimmedQuery);
+              if (MediaQuery.navigationModeOf(context) == NavigationMode.directional && onSelectNewTag == null) {
+                return TvFilterList(
+                  labels: [for (final tag in queryResult) tag.value],
+                  selected: [for (final tag in queryResult) selectedTagIds.value.contains(tag.id)],
+                  onToggle: (index) {
+                    final next = {...selectedTagIds.value};
+                    if (!next.remove(queryResult[index].id)) next.add(queryResult[index].id);
+                    selectedTagIds.value = next;
+                    onSelectExistingTag(tags.where((tag) => next.contains(tag.id)));
+                  },
+                );
+              }
               return ListView.builder(
                 itemCount: queryResult.length + (showCreateTile ? 1 : 0),
                 padding: const EdgeInsets.all(8),

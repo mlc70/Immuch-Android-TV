@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:immich_mobile/presentation/widgets/tv/tv_search_choice.dart';
 
 class SearchDropdown<T> extends StatelessWidget {
   const SearchDropdown({
@@ -8,6 +9,8 @@ class SearchDropdown<T> extends StatelessWidget {
     this.onSelected,
     this.label,
     this.leadingIcon,
+    this.loading = false,
+    this.onRetry,
   });
 
   final List<DropdownMenuEntry<T>> dropdownMenuEntries;
@@ -15,6 +18,8 @@ class SearchDropdown<T> extends StatelessWidget {
   final void Function(T?)? onSelected;
   final Widget? label;
   final Widget? leadingIcon;
+  final bool loading;
+  final VoidCallback? onRetry;
 
   static const WidgetStatePropertyAll<EdgeInsetsGeometry> _optionPadding = WidgetStatePropertyAll<EdgeInsetsGeometry>(
     EdgeInsetsDirectional.fromSTEB(16, 0, 16, 0),
@@ -22,6 +27,53 @@ class SearchDropdown<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (MediaQuery.navigationModeOf(context) == NavigationMode.directional) {
+      return ValueListenableBuilder<TextEditingValue>(
+        valueListenable: controller,
+        builder: (context, text, _) => OutlinedButton(
+          onPressed: () async {
+            if (loading) return;
+            if (onRetry != null) {
+              onRetry!();
+              return;
+            }
+            final current = dropdownMenuEntries.where((e) => e.label == controller.text).firstOrNull?.value;
+            final value = await showTvSearchChoice<T>(
+              context: context,
+              title: label ?? const Text('Select'),
+              entries: dropdownMenuEntries,
+              current: current,
+            );
+            if (value == null || !context.mounted) return;
+            controller.text = dropdownMenuEntries.firstWhere((e) => e.value == value).label;
+            onSelected?.call(value);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              children: [
+                if (leadingIcon != null) leadingIcon!,
+                if (label != null) label!,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    loading
+                        ? 'Loading…'
+                        : onRetry != null
+                        ? 'Could not load. OK to retry'
+                        : text.text.isEmpty
+                        ? 'Any'
+                        : text.text,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const Icon(Icons.arrow_drop_down),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     final mediaQuery = MediaQuery.of(context);
     final maxMenuHeight = mediaQuery.size.height * 0.5 - mediaQuery.viewPadding.bottom;
     const menuStyle = MenuStyle(

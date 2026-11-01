@@ -32,6 +32,12 @@ class CameraPicker extends HookConsumerWidget {
     );
 
     final makeWidget = SearchDropdown(
+      loading: make.isLoading,
+      onRetry: make.hasError
+          ? () => ref.invalidate(
+              getSearchSuggestionsProvider(const SearchSuggestionArgs(type: SearchSuggestionType.cameraMake)),
+            )
+          : null,
       dropdownMenuEntries: switch (make) {
         AsyncError() => [],
         AsyncData(:final value) => value.map((e) => DropdownMenuEntry(value: e, label: e)).toList(),
@@ -45,12 +51,21 @@ class CameraPicker extends HookConsumerWidget {
           return;
         }
         selectedMake.value = value.toString();
+        selectedModel.value = null;
         modelTextController.value = TextEditingValue.empty;
         onSelect({'make': selectedMake.value, 'model': null});
       },
     );
 
     final modelWidget = SearchDropdown(
+      loading: models.isLoading,
+      onRetry: models.hasError
+          ? () => ref.invalidate(
+              getSearchSuggestionsProvider(
+                SearchSuggestionArgs(type: SearchSuggestionType.cameraModel, make: selectedMake.value),
+              ),
+            )
+          : null,
       dropdownMenuEntries: switch (models) {
         AsyncError() => [],
         AsyncData(:final value) => value.map((e) => DropdownMenuEntry(value: e, label: e)).toList(),
@@ -65,7 +80,7 @@ class CameraPicker extends HookConsumerWidget {
       },
     );
 
-    if (context.isMobile) {
+    if (context.isMobile || MediaQuery.navigationModeOf(context) == NavigationMode.directional) {
       return Column(children: [makeWidget, const SizedBox(height: 8), modelWidget]);
     }
 

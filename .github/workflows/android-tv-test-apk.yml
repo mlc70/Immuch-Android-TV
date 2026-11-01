@@ -87,7 +87,7 @@ jobs:
 
       - name: Test Search filter TV navigation
         working-directory: mobile
-        run: mise exec -- flutter test test/widgets/search/search_filter test/presentation/widgets/search/tv_date_range_test.dart test/presentation/widgets/tv/tv_search_choice_test.dart
+        run: mise exec -- flutter test test/widgets/search/search_filter test/presentation/widgets/search/tv_date_range_test.dart test/presentation/widgets/tv/tv_search_choice_test.dart test/presentation/widgets/tv/tv_filter_list_test.dart
 
       - name: Analyze modified Search filters
         working-directory: mobile

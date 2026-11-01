@@ -30,5 +30,5 @@ final getSearchSuggestionsProvider = FutureProvider.autoDispose.family<List<Stri
     model: args.model,
   );
 
-  return suggestions ?? [];
+  return (suggestions ?? []).where((value) => value.trim().isNotEmpty).toSet().toList()..sort();
 });
