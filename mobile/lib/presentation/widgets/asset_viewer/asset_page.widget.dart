@@ -32,9 +32,16 @@ enum _DragIntent { none, scroll, dismiss }
 class AssetPage extends ConsumerStatefulWidget {
   final int index;
   final int heroOffset;
+  final ValueChanged<PhotoViewControllerBase?>? onPhotoController;
   final void Function(int direction)? onTapNavigate;
 
-  const AssetPage({super.key, required this.index, required this.heroOffset, this.onTapNavigate});
+  const AssetPage({
+    super.key,
+    required this.index,
+    required this.heroOffset,
+    this.onTapNavigate,
+    this.onPhotoController,
+  });
 
   @override
   ConsumerState createState() => _AssetPageState();
@@ -91,6 +98,7 @@ class _AssetPageState extends ConsumerState<AssetPage> {
 
   @override
   void dispose() {
+    widget.onPhotoController?.call(null);
     _scrollController.dispose();
     unawaited(_scaleBoundarySub?.cancel());
     unawaited(_eventSubscription?.cancel());
@@ -352,6 +360,7 @@ class _AssetPageState extends ConsumerState<AssetPage> {
 
   void _onPageBuild(PhotoViewControllerBase controller) {
     _viewController = controller;
+    widget.onPhotoController?.call(controller);
     _listenForScaleBoundaries(controller);
   }
 

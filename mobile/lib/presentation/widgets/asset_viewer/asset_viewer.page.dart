@@ -21,6 +21,7 @@ import 'package:immich_mobile/presentation/widgets/asset_viewer/asset_stack.prov
 import 'package:immich_mobile/presentation/widgets/asset_viewer/viewer_bottom_app_bar.widget.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/viewer_top_app_bar.widget.dart';
 import 'package:immich_mobile/presentation/widgets/tv/remote_keys.dart';
+import 'package:immich_mobile/presentation/widgets/tv/tv_photo_zoom.dart';
 import 'package:immich_mobile/providers/asset_viewer/asset_viewer.provider.dart';
 import 'package:immich_mobile/providers/asset_viewer/video_player_provider.dart';
 import 'package:immich_mobile/providers/cast.provider.dart';
@@ -148,8 +149,15 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
 
   /// "Paused: the arrows go to the previous or next item" shows once per opening of the viewer
   bool _pausedHintShown = false;
+  final _photoControllers = <int, PhotoViewControllerBase>{};
+  late final _photoZoom = TvPhotoZoom()..addListener(_onPhotoZoom);
+
+  void _onPhotoZoom() {
+    if (mounted) setState(() {});
+  }
 
   void _onTapNavigate(int direction) {
+    _photoZoom.reset();
     final page = _pageController.page?.toInt();
     if (page == null) {
       return;
@@ -238,6 +246,7 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
     _topBarFocus.removeListener(_onBarsFocus);
     _bottomBarFocus.removeListener(_onBarsFocus);
     _rootFocus.dispose();
+    _photoZoom.dispose();
     _topBarFocus.dispose();
     _topActionsFocus.dispose();
     _bottomBarFocus.dispose();
@@ -282,6 +291,10 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
   }
 
   Future<void> _onAssetChanged(int index) async {
+    if (_currentPage != index) {
+      _photoZoom.reset();
+      _photoZoom.controller = null;
+    }
     _currentPage = index;
 
     final asset = await ref.read(timelineServiceProvider).getAssetAsync(index);
@@ -429,6 +442,34 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
       }
       return KeyEventResult.handled;
     }
+    final photoRemote =
+        ref.read(tvModeProvider) &&
+        ref.read(assetViewerProvider).currentAsset?.isImage == true &&
+        !ref.read(assetViewerProvider).showingDetails;
+    if (photoRemote) {
+      _photoZoom.controller = _photoControllers[_currentPage];
+      if (remoteOkKeys.contains(key)) {
+        _photoZoom.ok(event, () {
+          if (!mounted || !_rootFocus.hasPrimaryFocus) {
+            return;
+          }
+          if (ref.read(assetViewerProvider).showingControls) {
+            ref.read(assetViewerProvider.notifier).setControls(false);
+          } else {
+            _showControlsAndFocus(_bottomBarFocus, withBack: false);
+          }
+        });
+        return KeyEventResult.handled;
+      }
+      final vertical = key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.arrowDown;
+      final horizontal = key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.arrowRight;
+      if (vertical || (horizontal && _photoZoom.panning)) {
+        if (event is! KeyUpEvent) {
+          _photoZoom.arrow(key);
+        }
+        return KeyEventResult.handled;
+      }
+    }
     final playing = video != null && _isPlaying(video);
     if (remoteOkKeys.contains(key)) {
       if (press) {
@@ -533,6 +574,9 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
 
   /// Back on a TV: the details close first, then the controls that have the focus hide, then the viewer closes
   void _onTvBack() {
+    if (_photoZoom.back()) {
+      return;
+    }
     if (ref.read(assetViewerProvider).showingDetails) {
       EventStream.shared.emit(const ViewerHideDetailsEvent());
       return;
@@ -624,11 +668,40 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
                       ? const FastScrollPhysics()
                       : const FastClampingScrollPhysics(),
                   itemCount: _totalAssets,
-                  itemBuilder: (context, index) =>
-                      AssetPage(index: index, heroOffset: _heroOffset, onTapNavigate: _onTapNavigate),
+                  itemBuilder: (context, index) => AssetPage(
+                    index: index,
+                    heroOffset: _heroOffset,
+                    onTapNavigate: _onTapNavigate,
+                    onPhotoController: (controller) {
+                      if (controller == null) {
+                        _photoControllers.remove(index);
+                      } else {
+                        _photoControllers[index] = controller;
+                      }
+                    },
+                  ),
                 ),
               ),
             ),
+            if (tvMode && _photoZoom.active && !showingDetails)
+              Positioned(
+                top: 40,
+                left: 40,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(8)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        _photoZoom.panning
+                            ? 'Pan mode • D-pad to move • OK or Back to finish'
+                            : 'Zoom ${(_photoZoom.factor * 100).round()}% • Hold OK to pan',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             // TV: keep photo metadata readable but out of the middle of the image.
             // The normal mobile/desktop title is left unchanged, and the date disappears with the controls.
             if (tvMode && showTvPhotoDateTime && showingControls && !showingDetails && currentAsset?.isImage == true)
@@ -641,10 +714,7 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
                   minimum: const EdgeInsets.only(left: 16, bottom: 8),
                   child: IgnorePointer(
                     child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         child: ViewerAssetDateTime(asset: currentAsset!, alignLeft: true),
@@ -674,13 +744,21 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
 
     return PopScope(
       // On a TV, Back closes the details, then leaves the bars, before it closes the viewer
-      canPop: !tvMode || (!showingDetails && !_barsHaveFocus),
+      canPop: !tvMode || (!showingDetails && !_barsHaveFocus && !_photoZoom.active),
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) {
           _onTvBack();
         }
       },
-      child: Focus(focusNode: _rootFocus, autofocus: true, onKeyEvent: _onKey, child: viewer),
+      child: Focus(
+        focusNode: _rootFocus,
+        autofocus: true,
+        onKeyEvent: _onKey,
+        onFocusChange: (focused) {
+          if (!focused) _photoZoom.cancelHold();
+        },
+        child: viewer,
+      ),
     );
   }
 }
