@@ -23,6 +23,9 @@ import 'package:immich_mobile/widgets/search/search_filter/star_rating_picker.da
 import 'package:immich_mobile/widgets/search/search_filter/display_option_picker.dart';
 import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
 import 'package:immich_mobile/presentation/widgets/search/tv_date_range.dart';
+import 'package:immich_mobile/presentation/widgets/search/tv_text_search_mode.dart';
+import 'package:immich_mobile/providers/infrastructure/tv.provider.dart';
+import 'package:immich_mobile/constants/enums.dart';
 
 void main() {
   Future<void> press(WidgetTester tester, LogicalKeyboardKey key) async {
@@ -44,6 +47,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          tvModeProvider.overrideWithValue(true),
           ...overrides,
           getSearchSuggestionsProvider.overrideWith((ref, args) async {
             requests.add(args);
@@ -256,4 +260,37 @@ void main() {
     expect(find.text('Selector'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  for (final capabilities in [true, false]) {
+    testWidgets('text modes respect server features: $capabilities', (tester) async {
+      TextSearchType? selected;
+      await open(
+        tester,
+        Builder(
+          builder: (context) => OutlinedButton(
+            onPressed: () async => selected = await showTvTextSearchMode(
+              context: context,
+              current: selected ?? (capabilities ? TextSearchType.context : TextSearchType.filename),
+              smartSearch: capabilities,
+              ocr: capabilities,
+            ),
+            child: const Text('Text modes'),
+          ),
+        ),
+        [],
+      );
+      await press(tester, LogicalKeyboardKey.select);
+      await press(tester, LogicalKeyboardKey.arrowDown);
+      await press(tester, LogicalKeyboardKey.select);
+      expect(selected, capabilities ? TextSearchType.filename : TextSearchType.description);
+      if (capabilities) {
+        await press(tester, LogicalKeyboardKey.select);
+        await press(tester, LogicalKeyboardKey.arrowDown);
+        await press(tester, LogicalKeyboardKey.arrowDown);
+        await press(tester, LogicalKeyboardKey.select);
+        expect(selected, TextSearchType.ocr);
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
 }

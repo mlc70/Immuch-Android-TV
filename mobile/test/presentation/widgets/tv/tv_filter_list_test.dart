@@ -12,15 +12,22 @@ void main() {
     final selected = List.filled(120, false);
     final focus = FocusNode();
     addTearDown(focus.dispose);
-    await tester.pumpWidget(MaterialApp(
-      builder: (context, child) => TvShell(child: child!),
-      home: Scaffold(body: StatefulBuilder(builder: (context, setState) => FocusScope(
-        child: TvFilterList(
-          labels: [for (var i = 0; i < 120; i++) 'Person $i'], selected: selected,
-          onToggle: (i) => setState(() => selected[i] = !selected[i]),
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (context, child) => TvShell(child: child!),
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) => FocusScope(
+              child: TvFilterList(
+                labels: [for (var i = 0; i < 120; i++) 'Person $i'],
+                selected: selected,
+                onToggle: (i) => setState(() => selected[i] = !selected[i]),
+              ),
+            ),
+          ),
         ),
-      ))),
-    ));
+      ),
+    );
     await tester.pumpAndSettle();
     final list = tester.element(find.byType(TvFilterList));
     final node = Focus.of(tester.element(find.byType(ListView)));

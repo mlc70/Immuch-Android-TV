@@ -19,7 +19,7 @@ import 'package:immich_mobile/presentation/pages/search/paginated_search.provide
 import 'package:immich_mobile/presentation/widgets/bottom_sheet/general_bottom_sheet.widget.dart';
 import 'package:immich_mobile/presentation/widgets/search/quick_date_picker.dart';
 import 'package:immich_mobile/presentation/widgets/search/tv_date_range.dart';
-import 'package:immich_mobile/presentation/widgets/tv/tv_search_choice.dart';
+import 'package:immich_mobile/presentation/widgets/search/tv_text_search_mode.dart';
 import 'package:immich_mobile/presentation/widgets/timeline/timeline.widget.dart';
 import 'package:immich_mobile/providers/infrastructure/timeline.provider.dart';
 import 'package:immich_mobile/providers/search/search_input_focus.provider.dart';
@@ -563,18 +563,11 @@ class SearchPage extends HookConsumerWidget {
                     tooltip: context.t.show_text_search_menu,
                     icon: const Icon(Icons.more_vert_rounded),
                     onPressed: () async {
-                      final selected = await showTvSearchChoice<TextSearchType>(
+                      final selected = await showTvTextSearchMode(
                         context: context,
-                        title: Text(context.t.show_text_search_menu),
                         current: textSearchType.value,
-                        entries: [
-                          if (serverFeatures.smartSearch)
-                            DropdownMenuEntry(value: TextSearchType.context, label: context.t.search_by_context),
-                          DropdownMenuEntry(value: TextSearchType.filename, label: context.t.search_filter_filename),
-                          DropdownMenuEntry(value: TextSearchType.description, label: context.t.search_by_description),
-                          if (serverFeatures.ocr)
-                            DropdownMenuEntry(value: TextSearchType.ocr, label: context.t.search_by_ocr),
-                        ],
+                        smartSearch: serverFeatures.smartSearch,
+                        ocr: serverFeatures.ocr,
                       );
                       if (selected == null || !context.mounted) return;
                       textSearchType.value = selected;
