@@ -23,23 +23,11 @@ class LocationPicker extends HookConsumerWidget {
     final selectedState = useState<String?>(filter?.state);
     final selectedCity = useState<String?>(filter?.city);
 
-    final countries = ref.watch(
-      getSearchSuggestionsProvider(
-        SearchSuggestionArgs(
-          type: SearchSuggestionType.country,
-          locationCountry: selectedCountry.value,
-          locationState: selectedState.value,
-        ),
-      ),
-    );
+    final countries = ref.watch(getSearchSuggestionsProvider(SearchSuggestionArgs(type: SearchSuggestionType.country)));
 
     final states = ref.watch(
       getSearchSuggestionsProvider(
-        SearchSuggestionArgs(
-          type: SearchSuggestionType.state,
-          locationCountry: selectedCountry.value,
-          locationState: selectedState.value,
-        ),
+        SearchSuggestionArgs(type: SearchSuggestionType.state, locationCountry: selectedCountry.value),
       ),
     );
 
@@ -68,6 +56,8 @@ class LocationPicker extends HookConsumerWidget {
               return;
             }
             selectedCountry.value = value.toString();
+            selectedState.value = null;
+            selectedCity.value = null;
             stateTextController.value = TextEditingValue.empty;
             cityTextController.value = TextEditingValue.empty;
             onSelected({'country': selectedCountry.value, 'state': null, 'city': null});
@@ -87,6 +77,7 @@ class LocationPicker extends HookConsumerWidget {
               return;
             }
             selectedState.value = value.toString();
+            selectedCity.value = null;
             cityTextController.value = TextEditingValue.empty;
             onSelected({'country': selectedCountry.value, 'state': selectedState.value, 'city': null});
           },

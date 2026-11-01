@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:immich_mobile/presentation/widgets/tv/tv_search_choice.dart';
 
 class SearchDropdown<T> extends StatelessWidget {
   const SearchDropdown({
@@ -22,6 +23,37 @@ class SearchDropdown<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (MediaQuery.navigationModeOf(context) == NavigationMode.directional) {
+      return ValueListenableBuilder<TextEditingValue>(
+        valueListenable: controller,
+        builder: (context, text, _) => OutlinedButton(
+          onPressed: () async {
+            final current = dropdownMenuEntries.where((e) => e.label == controller.text).firstOrNull?.value;
+            final value = await showTvSearchChoice<T>(
+              context: context,
+              title: label ?? const Text('Select'),
+              entries: dropdownMenuEntries,
+              current: current,
+            );
+            if (value == null || !context.mounted) return;
+            controller.text = dropdownMenuEntries.firstWhere((e) => e.value == value).label;
+            onSelected?.call(value);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              children: [
+                if (leadingIcon != null) leadingIcon!,
+                if (label != null) label!,
+                const SizedBox(width: 16),
+                Expanded(child: Text(text.text.isEmpty ? 'Any' : text.text, overflow: TextOverflow.ellipsis)),
+                const Icon(Icons.arrow_drop_down),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     final mediaQuery = MediaQuery.of(context);
     final maxMenuHeight = mediaQuery.size.height * 0.5 - mediaQuery.viewPadding.bottom;
     const menuStyle = MenuStyle(

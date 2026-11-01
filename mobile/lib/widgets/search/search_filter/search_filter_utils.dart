@@ -22,6 +22,10 @@ Future<T> showFilterBottomSheet<T>({
     useSafeArea: false,
     isDismissible: isDismissible,
     showDragHandle: isDismissible,
-    builder: (BuildContext context) => tvChild,
+    builder: (BuildContext context) => FocusScope(
+      traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
+      directionalTraversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
+      child: tvChild,
+    ),
   );
 }

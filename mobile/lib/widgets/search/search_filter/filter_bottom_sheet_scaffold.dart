@@ -35,11 +35,17 @@ class _FilterBottomSheetScaffoldState extends State<FilterBottomSheetScaffold> {
   final _clearFocus = FocusNode(debugLabel: 'TV filter clear');
   final _applyFocus = FocusNode(debugLabel: 'TV filter apply');
   FocusNode? _lastContentFocus;
+  late final _contentPolicy = _ContentTraversalPolicy(() => widget.onSearch == null ? _clearFocus : _applyFocus);
 
   @override
   void initState() {
     super.initState();
     FocusManager.instance.addListener(_rememberContentFocus);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.tvActionRail && MediaQuery.navigationModeOf(context) == NavigationMode.directional) {
+        (topLeftFocusNode(_content.traversalDescendants) ?? _clearFocus).requestFocus();
+      }
+    });
   }
 
   @override
@@ -123,6 +129,7 @@ class _FilterBottomSheetScaffoldState extends State<FilterBottomSheetScaffold> {
                 children: [
                   Expanded(
                     child: FocusTraversalGroup(
+                      policy: _contentPolicy,
                       child: Focus(focusNode: _content, onKeyEvent: _onContentKey, child: widget.child),
                     ),
                   ),
@@ -140,6 +147,8 @@ class _FilterBottomSheetScaffoldState extends State<FilterBottomSheetScaffold> {
                             _clearButton(tv: true),
                             if (widget.onSearch != null) const SizedBox(height: 12),
                             if (widget.onSearch != null) _applyButton(tv: true),
+                            const SizedBox(height: 12),
+                            OutlinedButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Back')),
                           ],
                         ),
                       ),
@@ -165,5 +174,18 @@ class _FilterBottomSheetScaffoldState extends State<FilterBottomSheetScaffold> {
         ],
       ),
     );
+  }
+}
+
+class _ContentTraversalPolicy extends ReadingOrderTraversalPolicy {
+  _ContentTraversalPolicy(this.target);
+  final FocusNode Function() target;
+  @override
+  bool inDirection(FocusNode currentNode, TraversalDirection direction) {
+    if (direction == TraversalDirection.right && target().context != null) {
+      target().requestFocus();
+      return true;
+    }
+    return super.inDirection(currentNode, direction);
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +18,8 @@ import 'package:immich_mobile/models/search/search_filter.model.dart';
 import 'package:immich_mobile/presentation/pages/search/paginated_search.provider.dart';
 import 'package:immich_mobile/presentation/widgets/bottom_sheet/general_bottom_sheet.widget.dart';
 import 'package:immich_mobile/presentation/widgets/search/quick_date_picker.dart';
+import 'package:immich_mobile/presentation/widgets/search/tv_date_range.dart';
+import 'package:immich_mobile/presentation/widgets/tv/tv_search_choice.dart';
 import 'package:immich_mobile/presentation/widgets/timeline/timeline.widget.dart';
 import 'package:immich_mobile/providers/infrastructure/timeline.provider.dart';
 import 'package:immich_mobile/providers/search/search_input_focus.provider.dart';
@@ -309,7 +312,7 @@ class SearchPage extends HookConsumerWidget {
         filter.value.copyWith(
           date: SearchDateFilter(
             takenAfter: date.start,
-            takenBefore: date.end.add(const Duration(hours: 23, minutes: 59, seconds: 59)),
+            takenBefore: DateTime(date.end.year, date.end.month, date.end.day, 23, 59, 59),
           ),
         ),
       );
@@ -356,6 +359,30 @@ class SearchPage extends HookConsumerWidget {
     }
 
     void showQuickDatePicker() {
+      if (MediaQuery.navigationModeOf(context) == NavigationMode.directional) {
+        var start = DateUtils.dateOnly(filter.value.date.takenAfter ?? DateTime.now());
+        var end = DateUtils.dateOnly(filter.value.date.takenBefore ?? DateTime.now());
+        unawaited(
+          showFilterBottomSheet(
+            context: context,
+            child: FilterBottomSheetScaffold(
+              title: context.t.pick_date_range,
+              tvActionRail: true,
+              onClear: () => datePicked(null),
+              onSearch: () => datePicked(CustomDateFilter(start, end)),
+              child: TvDateRange(
+                start: start,
+                end: end,
+                onChanged: (a, b) {
+                  start = a;
+                  end = b;
+                },
+              ),
+            ),
+          ),
+        );
+        return;
+      }
       unawaited(
         showFilterBottomSheet(
           context: context,
@@ -517,112 +544,156 @@ class SearchPage extends HookConsumerWidget {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
+        bottom: const bool.fromEnvironment('IMMUCH_TV_ONLY')
+            ? const PreferredSize(
+                preferredSize: Size.fromHeight(24),
+                child: Text(
+                  '${String.fromEnvironment('TV_BRANCH')} • ${String.fromEnvironment('TV_COMMIT')} ',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              )
+            : null,
         automaticallyImplyLeading: true,
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
-            child: MenuAnchor(
-              style: MenuStyle(
-                elevation: const WidgetStatePropertyAll(1),
-                shape: WidgetStateProperty.all(
-                  const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(24))),
-                ),
-                padding: const WidgetStatePropertyAll(EdgeInsets.all(4)),
-              ),
-              builder: (BuildContext context, MenuController controller, Widget? child) {
-                return IconButton(
-                  onPressed: () {
-                    if (controller.isOpen) {
-                      controller.close();
-                    } else {
-                      controller.open();
-                    }
-                  },
-                  icon: const Icon(Icons.more_vert_rounded),
-                  tooltip: context.t.show_text_search_menu,
-                );
-              },
-              menuChildren: [
-                FeatureCheck(
-                  feature: (features) => features.smartSearch,
-                  child: MenuItemButton(
-                    child: ListTile(
-                      leading: const Icon(Icons.image_search_rounded),
-                      title: Text(
-                        context.t.search_by_context,
-                        style: context.textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          color: textSearchType.value == TextSearchType.context ? context.colorScheme.primary : null,
+            child: MediaQuery.navigationModeOf(context) == NavigationMode.directional
+                ? IconButton(
+                    tooltip: context.t.show_text_search_menu,
+                    icon: const Icon(Icons.more_vert_rounded),
+                    onPressed: () async {
+                      final selected = await showTvSearchChoice<TextSearchType>(
+                        context: context,
+                        title: Text(context.t.show_text_search_menu),
+                        current: textSearchType.value,
+                        entries: [
+                          if (serverFeatures.smartSearch)
+                            DropdownMenuEntry(value: TextSearchType.context, label: context.t.search_by_context),
+                          DropdownMenuEntry(value: TextSearchType.filename, label: context.t.search_filter_filename),
+                          DropdownMenuEntry(value: TextSearchType.description, label: context.t.search_by_description),
+                          if (serverFeatures.ocr)
+                            DropdownMenuEntry(value: TextSearchType.ocr, label: context.t.search_by_ocr),
+                        ],
+                      );
+                      if (selected == null || !context.mounted) return;
+                      textSearchType.value = selected;
+                      searchHintText.value = switch (selected) {
+                        TextSearchType.context => context.t.sunrise_on_the_beach,
+                        TextSearchType.filename => context.t.file_name_or_extension,
+                        TextSearchType.description => context.t.search_by_description_example,
+                        TextSearchType.ocr => context.t.search_by_ocr_example,
+                      };
+                    },
+                  )
+                : MenuAnchor(
+                    style: MenuStyle(
+                      elevation: const WidgetStatePropertyAll(1),
+                      shape: WidgetStateProperty.all(
+                        const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(24))),
+                      ),
+                      padding: const WidgetStatePropertyAll(EdgeInsets.all(4)),
+                    ),
+                    builder: (BuildContext context, MenuController controller, Widget? child) {
+                      return IconButton(
+                        onPressed: () {
+                          if (controller.isOpen) {
+                            controller.close();
+                          } else {
+                            controller.open();
+                          }
+                        },
+                        icon: const Icon(Icons.more_vert_rounded),
+                        tooltip: context.t.show_text_search_menu,
+                      );
+                    },
+                    menuChildren: [
+                      FeatureCheck(
+                        feature: (features) => features.smartSearch,
+                        child: MenuItemButton(
+                          child: ListTile(
+                            leading: const Icon(Icons.image_search_rounded),
+                            title: Text(
+                              context.t.search_by_context,
+                              style: context.textTheme.bodyLarge?.copyWith(
+                                fontWeight: FontWeight.w500,
+                                color: textSearchType.value == TextSearchType.context
+                                    ? context.colorScheme.primary
+                                    : null,
+                              ),
+                            ),
+                            selectedColor: context.colorScheme.primary,
+                            selected: textSearchType.value == TextSearchType.context,
+                          ),
+                          onPressed: () {
+                            textSearchType.value = TextSearchType.context;
+                            searchHintText.value = context.t.sunrise_on_the_beach;
+                          },
                         ),
                       ),
-                      selectedColor: context.colorScheme.primary,
-                      selected: textSearchType.value == TextSearchType.context,
-                    ),
-                    onPressed: () {
-                      textSearchType.value = TextSearchType.context;
-                      searchHintText.value = context.t.sunrise_on_the_beach;
-                    },
-                  ),
-                ),
-                MenuItemButton(
-                  child: ListTile(
-                    leading: const Icon(Icons.abc_rounded),
-                    title: Text(
-                      context.t.search_filter_filename,
-                      style: context.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: textSearchType.value == TextSearchType.filename ? context.colorScheme.primary : null,
+                      MenuItemButton(
+                        child: ListTile(
+                          leading: const Icon(Icons.abc_rounded),
+                          title: Text(
+                            context.t.search_filter_filename,
+                            style: context.textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: textSearchType.value == TextSearchType.filename
+                                  ? context.colorScheme.primary
+                                  : null,
+                            ),
+                          ),
+                          selectedColor: context.colorScheme.primary,
+                          selected: textSearchType.value == TextSearchType.filename,
+                        ),
+                        onPressed: () {
+                          textSearchType.value = TextSearchType.filename;
+                          searchHintText.value = context.t.file_name_or_extension;
+                        },
                       ),
-                    ),
-                    selectedColor: context.colorScheme.primary,
-                    selected: textSearchType.value == TextSearchType.filename,
-                  ),
-                  onPressed: () {
-                    textSearchType.value = TextSearchType.filename;
-                    searchHintText.value = context.t.file_name_or_extension;
-                  },
-                ),
-                MenuItemButton(
-                  child: ListTile(
-                    leading: const Icon(Icons.text_snippet_outlined),
-                    title: Text(
-                      context.t.search_by_description,
-                      style: context.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: textSearchType.value == TextSearchType.description ? context.colorScheme.primary : null,
+                      MenuItemButton(
+                        child: ListTile(
+                          leading: const Icon(Icons.text_snippet_outlined),
+                          title: Text(
+                            context.t.search_by_description,
+                            style: context.textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: textSearchType.value == TextSearchType.description
+                                  ? context.colorScheme.primary
+                                  : null,
+                            ),
+                          ),
+                          selectedColor: context.colorScheme.primary,
+                          selected: textSearchType.value == TextSearchType.description,
+                        ),
+                        onPressed: () {
+                          textSearchType.value = TextSearchType.description;
+                          searchHintText.value = context.t.search_by_description_example;
+                        },
                       ),
-                    ),
-                    selectedColor: context.colorScheme.primary,
-                    selected: textSearchType.value == TextSearchType.description,
-                  ),
-                  onPressed: () {
-                    textSearchType.value = TextSearchType.description;
-                    searchHintText.value = context.t.search_by_description_example;
-                  },
-                ),
-                FeatureCheck(
-                  feature: (features) => features.ocr,
-                  child: MenuItemButton(
-                    child: ListTile(
-                      leading: const Icon(Icons.document_scanner_outlined),
-                      title: Text(
-                        context.t.search_by_ocr,
-                        style: context.textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          color: textSearchType.value == TextSearchType.ocr ? context.colorScheme.primary : null,
+                      FeatureCheck(
+                        feature: (features) => features.ocr,
+                        child: MenuItemButton(
+                          child: ListTile(
+                            leading: const Icon(Icons.document_scanner_outlined),
+                            title: Text(
+                              context.t.search_by_ocr,
+                              style: context.textTheme.bodyLarge?.copyWith(
+                                fontWeight: FontWeight.w500,
+                                color: textSearchType.value == TextSearchType.ocr ? context.colorScheme.primary : null,
+                              ),
+                            ),
+                            selectedColor: context.colorScheme.primary,
+                            selected: textSearchType.value == TextSearchType.ocr,
+                          ),
+                          onPressed: () {
+                            textSearchType.value = TextSearchType.ocr;
+                            searchHintText.value = context.t.search_by_ocr_example;
+                          },
                         ),
                       ),
-                      selectedColor: context.colorScheme.primary,
-                      selected: textSearchType.value == TextSearchType.ocr,
-                    ),
-                    onPressed: () {
-                      textSearchType.value = TextSearchType.ocr;
-                      searchHintText.value = context.t.search_by_ocr_example;
-                    },
+                    ],
                   ),
-                ),
-              ],
-            ),
           ),
         ],
         title: DecoratedBox(
@@ -884,78 +955,91 @@ class _QuickLinkList extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: const BorderRadius.all(Radius.circular(20)),
-        border: Border.all(color: context.colorScheme.outline.withAlpha(10), width: 1),
-        gradient: LinearGradient(
-          colors: [
-            context.colorScheme.primary.withAlpha(10),
-            context.colorScheme.primary.withAlpha(15),
-            context.colorScheme.primary.withAlpha(20),
-          ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-      ),
-      child: ListView(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        children: [
-          _QuickLink(
-            title: context.t.recently_taken,
-            icon: Icons.schedule_outlined,
-            isTop: true,
-            onTap: () => context.pushRoute(const RecentlyTakenRoute()),
-          ),
-          _QuickLink(
-            title: context.t.recently_added,
-            icon: Icons.upload_outlined,
-            onTap: () => context.pushRoute(const RecentlyAddedRoute()),
-          ),
-          _QuickLink(
-            title: context.t.videos,
-            icon: Icons.play_circle_outline_rounded,
-            onTap: () => context.pushRoute(const VideoRoute()),
-          ),
-          _QuickLink(
-            title: context.t.favorites,
-            icon: Icons.favorite_border_rounded,
-            isBottom: true,
-            onTap: () => context.pushRoute(const FavoriteRoute()),
-          ),
-        ],
+        border: Border.…1797 tokens truncated…    _on = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final enabled = widget.enabled;
+    // The same widgets on and off, see [TvShell]
+    return MediaQuery(
+      data: enabled
+          ? media.copyWith(
+              navigationMode: NavigationMode.directional,
+              padding: _atLeast(media.padding, TvShell.overscan),
+              viewPadding: _atLeast(media.viewPadding, TvShell.overscan),
+            )
+          : media,
+      child: Shortcuts(
+        debugLabel: 'TV remote',
+        shortcuts: enabled ? TvShell.shortcuts : const <ShortcutActivator, Intent>{},
+        child: TvFocusRing(enabled: enabled, child: widget.child),
       ),
     );
   }
 }
 
-class _QuickLink extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool isTop;
-  final bool isBottom;
+EdgeInsets _atLeast(EdgeInsets insets, EdgeInsets minimum) => EdgeInsets.fromLTRB(
+  max(insets.left, minimum.left),
+  max(insets.top, minimum.top),
+  max(insets.right, minimum.right),
+  max(insets.bottom, minimum.bottom),
+);
 
-  const _QuickLink({
-    required this.title,
-    required this.icon,
-    required this.onTap,
-    this.isTop = false,
-    this.isBottom = false,
-  });
+final _arrowDirections = {
+  LogicalKeyboardKey.arrowUp: TraversalDirection.up,
+  LogicalKeyboardKey.arrowDown: TraversalDirection.down,
+  LogicalKeyboardKey.arrowLeft: TraversalDirection.left,
+  LogicalKeyboardKey.arrowRight: TraversalDirection.right,
+};
 
-  @override
-  Widget build(BuildContext context) {
-    final borderRadius = BorderRadius.only(
-      topLeft: Radius.circular(isTop ? 20 : 0),
-      topRight: Radius.circular(isTop ? 20 : 0),
-      bottomLeft: Radius.circular(isBottom ? 20 : 0),
-      bottomRight: Radius.circular(isBottom ? 20 : 0),
-    );
+/// How far above the focused node a radio button may be: the focus node of a RadioListTile sits about fifteen widgets
+/// under it
+const _radioSearchDepth = 40;
 
-    return ListTile(
-      shape: RoundedRectangleBorder(borderRadius: borderRadius),
-      leading: Icon(icon, size: 26),
-      title: Text(title, style: context.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w500)),
-      onTap: onTap,
-    );
+/// An arrow pressed on a radio button moves the focus, as on any other control of a TV page. Flutter's RadioGroup
+/// takes the arrows to move the choice instead (the keyboard convention of the web): with a remote, whose only way down
+/// is an arrow, the focus never left the group, each press changed the choice on the way, and a choice that opens
+/// another page (Plex in the share form) or changes the layout (the remote control layout setting) acted at once. OK
+/// still picks the choice that has the focus. Called before the focus tree sees the key, since the group's own
+/// shortcuts sit under the TV shell.
+///
+/// The move goes through the traversal policy around the group, the one the controls next to it use: the group's own
+/// policy keeps a history of its moves that the moves of the other controls do not update, and Up from the field
+/// under the group then Up again would bounce back to the field.
+@visibleForTesting
+KeyEventResult radioArrowMovesFocus(KeyEvent event) {
+  final direction = _arrowDirections[event.logicalKey];
+  final node = FocusManager.instance.primaryFocus;
+  final context = node?.context;
+  if (direction == null || node == null || context == null || event is KeyUpEvent) {
+    return KeyEventResult.ignored;
   }
+  final group = _radioGroupOf(context);
+  if (group == null) {
+    return KeyEventResult.ignored;
+  }
+  (FocusTraversalGroup.maybeOf(group) ?? ReadingOrderTraversalPolicy()).inDirection(node, direction);
+  // Handled even at the edge of the page: the group would move the choice otherwise
+  return KeyEventResult.handled;
+}
+
+/// The RadioGroup around [context] when it is the focus of a radio button of that group, else null
+BuildContext? _radioGroupOf(BuildContext context) {
+  var radio = false;
+  BuildContext? group;
+  var depth = 0;
+  context.visitAncestorElements((element) {
+    final widget = element.widget;
+    if (widget is RadioGroup) {
+      group = radio ? element : null;
+      return false;
+    }
+    radio = radio || widget is RadioListTile || widget is Radio || widget is RawRadio;
+    depth++;
+    // Past the depth without a radio button: some other control, which the group leaves alone anyway
+    return radio || depth < _radioSearchDepth;
+  });
+  return group;
 }

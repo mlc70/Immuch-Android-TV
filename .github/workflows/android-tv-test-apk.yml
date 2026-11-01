@@ -1,4 +1,4 @@
-name: Android TV Test APK
+name: Android TV APK
 
 # A standalone build for our Android TV development branch.
 # Unlike the inherited mobile release workflows, this needs no signing secrets
@@ -6,9 +6,7 @@ name: Android TV Test APK
 on:
   push:
     branches:
-      - feature/tv-dpad-navigation
-      - feature/tv-all-search-filters
-      - feature/tv-combined-test
+      - feature/android-tv-permanent
     paths:
       - 'mobile/**'
       - 'native/**'
@@ -88,39 +86,32 @@ jobs:
           mise //mobile:codegen
 
       - name: Test Search filter TV navigation
-        if: github.ref_name == 'feature/tv-all-search-filters' || github.ref_name == 'feature/tv-combined-test' || github.ref_name == 'feature/tv-combined-test'
         working-directory: mobile
-        run: mise exec -- flutter test test/widgets/search/search_filter/filter_bottom_sheet_scaffold_tv_test.dart
+        run: mise exec -- flutter test test/widgets/search/search_filter test/presentation/widgets/search/tv_date_range_test.dart test/presentation/widgets/tv/tv_search_choice_test.dart
 
       - name: Analyze modified Search filters
-        if: github.ref_name == 'feature/tv-all-search-filters'
         working-directory: mobile
-        run: mise exec -- dart analyze lib/widgets/search/search_filter lib/presentation/pages/search/search.page.dart
+        run: mise exec -- dart analyze lib/widgets/search/search_filter lib/presentation/pages/search/search.page.dart lib/presentation/widgets/search/tv_date_range.dart lib/presentation/widgets/tv/tv_search_choice.dart
 
       - name: Test photo date/time preference
-        if: github.ref_name == 'feature/tv-combined-test'
         working-directory: mobile
         run: mise exec -- flutter test test/domain/models/config/tv_photo_date_setting_test.dart
 
       - name: Build independently installable release APK
         working-directory: mobile
         run: |
-          if [[ "${GITHUB_REF_NAME}" == "feature/tv-combined-test" ]]; then
-            mise exec -- flutter build apk --release --flavor phone --build-name "3.3.0-tv.${GITHUB_RUN_NUMBER}" --build-number "$((3030021 + GITHUB_RUN_NUMBER))"
-          else
-            mise exec -- flutter build apk --release --flavor phone
-          fi
+          mise exec -- flutter build apk --release --flavor tv --dart-define=IMMUCH_TV_ONLY=true --dart-define=TV_BRANCH=${GITHUB_REF_NAME} --dart-define=TV_COMMIT=${GITHUB_SHA} --build-name "3.3.0-tv.${GITHUB_RUN_NUMBER}" --build-number "$((3030021 + GITHUB_RUN_NUMBER))"
 
       - name: Stage test APK
         run: |
           mkdir -p dist
-          cp mobile/build/app/outputs/flutter-apk/app-phone-release.apk "dist/Immuch-TV-combined-r${GITHUB_RUN_NUMBER}.apk"
+          cp mobile/build/app/outputs/flutter-apk/app-tv-release.apk "dist/Immuch-Android-TV-r${GITHUB_RUN_NUMBER}.apk"
           sha256sum dist/*.apk
 
       - name: Upload APK for testing
         uses: actions/upload-artifact@v4
         with:
-          name: Immuch-TV-Combined-r${{ github.run_number }}
+          name: Immuch-Android-TV-r${{ github.run_number }}
           path: dist/*.apk
           if-no-files-found: error
           retention-days: 14
@@ -130,8 +121,8 @@ jobs:
         run: |
           echo '### Android TV test APK built successfully' >> "$GITHUB_STEP_SUMMARY"
           echo '' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Download **Immuch-TV-Combined-r${{ github.run_number }}** from the Artifacts section of this run.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Unzip it and install **Immuch-TV-combined-r${GITHUB_RUN_NUMBER}.apk**.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Download **Immuch-Android-TV-r${{ github.run_number }}** from the Artifacts section of this run.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Unzip it and install **Immuch-Android-TV-r${GITHUB_RUN_NUMBER}.apk**.' >> "$GITHUB_STEP_SUMMARY"
           echo 'The package is **com.aprogsys.immuch360.tvtest**, label **Immuch TV Test**. Build number is identified by run ${GITHUB_RUN_NUMBER}.' >> "$GITHUB_STEP_SUMMARY"
           echo "Signing mode: **${TV_TEST_SIGNING_MODE}**" >> "$GITHUB_STEP_SUMMARY"
           echo 'If signing mode is temporary, uninstall any existing **Immuch TV Test** before installing this build; this removes its saved login.' >> "$GITHUB_STEP_SUMMARY"

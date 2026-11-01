@@ -53,14 +53,8 @@ android {
   // permissions and 32 bit libraries (see src/quest/AndroidManifest.xml)
   flavorDimensions = ["store"]
   productFlavors {
-    phone {
+    tv {
       dimension "store"
-    }
-    quest {
-      dimension "store"
-      targetSdk = 34
-      // No TV entry in the Horizon Store build: the headset has no TV launcher and its upload checks are unknown there
-      manifestPlaceholders += [tvLauncherCategory: "android.intent.category.DEFAULT"]
     }
   }
 
@@ -106,7 +100,7 @@ android {
       if (System.getenv("IMMUCH_TV_TEST_BUILD") == "true") {
         applicationIdSuffix ".tvtest"
         versionNameSuffix "-tvtest"
-        resValue "string", "app_name", "Immuch TV Test"
+        resValue "string", "app_name", "Immuch Android TV"
       } else {
         def prNumber = System.getenv("PR_NUMBER")
         if (prNumber) {
