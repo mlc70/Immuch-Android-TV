@@ -20,8 +20,8 @@ import 'package:immich_mobile/presentation/widgets/bottom_sheet/general_bottom_s
 import 'package:immich_mobile/presentation/widgets/search/quick_date_picker.dart';
 import 'package:immich_mobile/presentation/widgets/search/tv_date_range.dart';
 import 'package:immich_mobile/presentation/widgets/search/tv_text_search_mode.dart';
-import 'package:immich_mobile/presentation/widgets/tv/tv_build_identity.dart';
 import 'package:immich_mobile/presentation/widgets/timeline/timeline.widget.dart';
+import 'package:immich_mobile/presentation/widgets/tv/tv_build_identity.dart';
 import 'package:immich_mobile/providers/infrastructure/timeline.provider.dart';
 import 'package:immich_mobile/providers/search/search_input_focus.provider.dart';
 import 'package:immich_mobile/providers/server_info.provider.dart';
@@ -563,7 +563,9 @@ class SearchPage extends HookConsumerWidget {
                         smartSearch: serverFeatures.smartSearch,
                         ocr: serverFeatures.ocr,
                       );
-                      if (selected == null || !context.mounted) { return; }
+                      if (selected == null || !context.mounted) {
+                        return;
+                      }
                       textSearchType.value = selected;
                       searchHintText.value = switch (selected) {
                         TextSearchType.context => context.t.sunrise_on_the_beach,

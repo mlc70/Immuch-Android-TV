@@ -6,8 +6,8 @@ import 'package:immich_mobile/domain/models/tag.model.dart';
 import 'package:immich_mobile/extensions/asyncvalue_extensions.dart';
 import 'package:immich_mobile/extensions/build_context_extensions.dart';
 import 'package:immich_mobile/generated/translations.g.dart';
-import 'package:immich_mobile/widgets/common/search_field.dart';
 import 'package:immich_mobile/presentation/widgets/tv/tv_filter_list.dart';
+import 'package:immich_mobile/widgets/common/search_field.dart';
 
 String _trimSlashes(String s) => s.replaceAll(RegExp(r'^/+|/+$'), '');
 

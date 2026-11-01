@@ -35,6 +35,8 @@ uninstalling a working installation as a routine upgrade step.
 The TV manifest excludes Quest/spatial viewer entry points, home-screen widgets
 and phone sharing. Their shared native implementations/dependencies remain until
 references are removed safely. OAuth callbacks and server integration are retained.
+The TV flavor also skips native startup backup scheduling and Flutter's upload
+foreground service without altering the user's stored backup preferences.
 
 Search requirements: all eight dialogs (People, Location, Tags, Camera, Date,
 Media Type, Rating, Display) must contain focus. Up/Down navigates; OK changes the

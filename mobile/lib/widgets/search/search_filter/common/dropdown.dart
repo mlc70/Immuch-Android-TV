@@ -56,8 +56,8 @@ class SearchDropdown<T> extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Row(
               children: [
-                if (leadingIcon != null) leadingIcon!,
-                if (label != null) label!,
+                ?leadingIcon,
+                ?label,
                 const SizedBox(width: 16),
                 Expanded(
                   child: Text(

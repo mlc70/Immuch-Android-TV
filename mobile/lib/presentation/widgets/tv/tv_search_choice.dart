@@ -26,7 +26,7 @@ class _Choice<T> extends StatefulWidget {
 class _ChoiceState<T> extends State<_Choice<T>> {
   late int index = widget.entries
       .indexWhere((e) => e.value == widget.current)
-      .clamp(0, widget.entries.length == 0 ? 0 : widget.entries.length - 1);
+      .clamp(0, widget.entries.isEmpty ? 0 : widget.entries.length - 1);
   late final scroll = ScrollController(initialScrollOffset: index * 56.0);
   @override
   void dispose() {

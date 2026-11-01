@@ -265,6 +265,9 @@ class ImmichAppState extends ConsumerState<ImmichApp> with WidgetsBindingObserve
     unawaited(initApp().then((_) => dPrint(() => "App Init Completed")));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // needs to be delayed so that EasyLocalization is working
+      if (const bool.fromEnvironment('IMMUCH_TV_ONLY')) {
+        return;
+      }
       unawaited(ref.read(backgroundWorkerFgServiceProvider).enable());
       if (Platform.isAndroid) {
         unawaited(
