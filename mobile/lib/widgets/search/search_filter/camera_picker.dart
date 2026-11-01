@@ -45,7 +45,6 @@ class CameraPicker extends HookConsumerWidget {
           return;
         }
         selectedMake.value = value.toString();
-        selectedModel.value = null;
         modelTextController.value = TextEditingValue.empty;
         onSelect({'make': selectedMake.value, 'model': null});
       },
@@ -66,7 +65,7 @@ class CameraPicker extends HookConsumerWidget {
       },
     );
 
-    if (context.isMobile || MediaQuery.navigationModeOf(context) == NavigationMode.directional) {
+    if (context.isMobile) {
       return Column(children: [makeWidget, const SizedBox(height: 8), modelWidget]);
     }
 

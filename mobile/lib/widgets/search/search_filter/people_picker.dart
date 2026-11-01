@@ -11,6 +11,7 @@ import 'package:immich_mobile/pages/common/large_leading_tile.dart';
 import 'package:immich_mobile/presentation/widgets/images/remote_image_provider.dart';
 import 'package:immich_mobile/utils/image_url_builder.dart';
 import 'package:immich_mobile/widgets/common/search_field.dart';
+import 'package:immich_mobile/presentation/widgets/tv/tv_filter_list.dart';
 
 class PeoplePicker extends HookConsumerWidget {
   const PeoplePicker({super.key, required this.onSelect, this.initialSelection});
@@ -52,6 +53,18 @@ class PeoplePicker extends HookConsumerWidget {
                     ),
                   )
                   .toList();
+              if (MediaQuery.navigationModeOf(context) == NavigationMode.directional) {
+                return TvFilterList(
+                  labels: [for (final person in filtered) person.name.nullIfEmpty ?? context.t.no_name],
+                  selected: [for (final person in filtered) selectedPeople.value.contains(person)],
+                  onToggle: (index) {
+                    final next = {...selectedPeople.value};
+                    if (!next.remove(filtered[index])) next.add(filtered[index]);
+                    selectedPeople.value = next;
+                    onSelect(next);
+                  },
+                );
+              }
               return ListView.builder(
                 shrinkWrap: true,
                 itemCount: filtered.length,

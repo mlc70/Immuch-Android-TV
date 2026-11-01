@@ -955,91 +955,78 @@ class _QuickLinkList extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: const BorderRadius.all(Radius.circular(20)),
-        border: Border.…1797 tokens truncated…    _on = false;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final enabled = widget.enabled;
-    // The same widgets on and off, see [TvShell]
-    return MediaQuery(
-      data: enabled
-          ? media.copyWith(
-              navigationMode: NavigationMode.directional,
-              padding: _atLeast(media.padding, TvShell.overscan),
-              viewPadding: _atLeast(media.viewPadding, TvShell.overscan),
-            )
-          : media,
-      child: Shortcuts(
-        debugLabel: 'TV remote',
-        shortcuts: enabled ? TvShell.shortcuts : const <ShortcutActivator, Intent>{},
-        child: TvFocusRing(enabled: enabled, child: widget.child),
+        border: Border.all(color: context.colorScheme.outline.withAlpha(10), width: 1),
+        gradient: LinearGradient(
+          colors: [
+            context.colorScheme.primary.withAlpha(10),
+            context.colorScheme.primary.withAlpha(15),
+            context.colorScheme.primary.withAlpha(20),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: ListView(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        children: [
+          _QuickLink(
+            title: context.t.recently_taken,
+            icon: Icons.schedule_outlined,
+            isTop: true,
+            onTap: () => context.pushRoute(const RecentlyTakenRoute()),
+          ),
+          _QuickLink(
+            title: context.t.recently_added,
+            icon: Icons.upload_outlined,
+            onTap: () => context.pushRoute(const RecentlyAddedRoute()),
+          ),
+          _QuickLink(
+            title: context.t.videos,
+            icon: Icons.play_circle_outline_rounded,
+            onTap: () => context.pushRoute(const VideoRoute()),
+          ),
+          _QuickLink(
+            title: context.t.favorites,
+            icon: Icons.favorite_border_rounded,
+            isBottom: true,
+            onTap: () => context.pushRoute(const FavoriteRoute()),
+          ),
+        ],
       ),
     );
   }
 }
 
-EdgeInsets _atLeast(EdgeInsets insets, EdgeInsets minimum) => EdgeInsets.fromLTRB(
-  max(insets.left, minimum.left),
-  max(insets.top, minimum.top),
-  max(insets.right, minimum.right),
-  max(insets.bottom, minimum.bottom),
-);
+class _QuickLink extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool isTop;
+  final bool isBottom;
 
-final _arrowDirections = {
-  LogicalKeyboardKey.arrowUp: TraversalDirection.up,
-  LogicalKeyboardKey.arrowDown: TraversalDirection.down,
-  LogicalKeyboardKey.arrowLeft: TraversalDirection.left,
-  LogicalKeyboardKey.arrowRight: TraversalDirection.right,
-};
-
-/// How far above the focused node a radio button may be: the focus node of a RadioListTile sits about fifteen widgets
-/// under it
-const _radioSearchDepth = 40;
-
-/// An arrow pressed on a radio button moves the focus, as on any other control of a TV page. Flutter's RadioGroup
-/// takes the arrows to move the choice instead (the keyboard convention of the web): with a remote, whose only way down
-/// is an arrow, the focus never left the group, each press changed the choice on the way, and a choice that opens
-/// another page (Plex in the share form) or changes the layout (the remote control layout setting) acted at once. OK
-/// still picks the choice that has the focus. Called before the focus tree sees the key, since the group's own
-/// shortcuts sit under the TV shell.
-///
-/// The move goes through the traversal policy around the group, the one the controls next to it use: the group's own
-/// policy keeps a history of its moves that the moves of the other controls do not update, and Up from the field
-/// under the group then Up again would bounce back to the field.
-@visibleForTesting
-KeyEventResult radioArrowMovesFocus(KeyEvent event) {
-  final direction = _arrowDirections[event.logicalKey];
-  final node = FocusManager.instance.primaryFocus;
-  final context = node?.context;
-  if (direction == null || node == null || context == null || event is KeyUpEvent) {
-    return KeyEventResult.ignored;
-  }
-  final group = _radioGroupOf(context);
-  if (group == null) {
-    return KeyEventResult.ignored;
-  }
-  (FocusTraversalGroup.maybeOf(group) ?? ReadingOrderTraversalPolicy()).inDirection(node, direction);
-  // Handled even at the edge of the page: the group would move the choice otherwise
-  return KeyEventResult.handled;
-}
-
-/// The RadioGroup around [context] when it is the focus of a radio button of that group, else null
-BuildContext? _radioGroupOf(BuildContext context) {
-  var radio = false;
-  BuildContext? group;
-  var depth = 0;
-  context.visitAncestorElements((element) {
-    final widget = element.widget;
-    if (widget is RadioGroup) {
-      group = radio ? element : null;
-      return false;
-    }
-    radio = radio || widget is RadioListTile || widget is Radio || widget is RawRadio;
-    depth++;
-    // Past the depth without a radio button: some other control, which the group leaves alone anyway
-    return radio || depth < _radioSearchDepth;
+  const _QuickLink({
+    required this.title,
+    required this.icon,
+    required this.onTap,
+    this.isTop = false,
+    this.isBottom = false,
   });
-  return group;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderRadius = BorderRadius.only(
+      topLeft: Radius.circular(isTop ? 20 : 0),
+      topRight: Radius.circular(isTop ? 20 : 0),
+      bottomLeft: Radius.circular(isBottom ? 20 : 0),
+      bottomRight: Radius.circular(isBottom ? 20 : 0),
+    );
+
+    return ListTile(
+      shape: RoundedRectangleBorder(borderRadius: borderRadius),
+      leading: Icon(icon, size: 26),
+      title: Text(title, style: context.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w500)),
+      onTap: onTap,
+    );
+  }
 }

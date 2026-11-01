@@ -44,6 +44,12 @@ class LocationPicker extends HookConsumerWidget {
     return Column(
       children: [
         SearchDropdown(
+          loading: countries.isLoading,
+          onRetry: countries.hasError
+              ? () => ref.invalidate(
+                  getSearchSuggestionsProvider(const SearchSuggestionArgs(type: SearchSuggestionType.country)),
+                )
+              : null,
           dropdownMenuEntries: switch (countries) {
             AsyncError() => [],
             AsyncData(:final value) => value.map((e) => DropdownMenuEntry(value: e, label: e)).toList(),
@@ -71,6 +77,14 @@ class LocationPicker extends HookConsumerWidget {
             _ => [],
           },
           label: Text(context.t.state),
+          loading: states.isLoading,
+          onRetry: states.hasError
+              ? () => ref.invalidate(
+                  getSearchSuggestionsProvider(
+                    SearchSuggestionArgs(type: SearchSuggestionType.state, locationCountry: selectedCountry.value),
+                  ),
+                )
+              : null,
           controller: stateTextController,
           onSelected: (value) {
             if (value.toString() == selectedState.value) {
@@ -90,6 +104,18 @@ class LocationPicker extends HookConsumerWidget {
             _ => [],
           },
           label: Text(context.t.city),
+          loading: cities.isLoading,
+          onRetry: cities.hasError
+              ? () => ref.invalidate(
+                  getSearchSuggestionsProvider(
+                    SearchSuggestionArgs(
+                      type: SearchSuggestionType.city,
+                      locationCountry: selectedCountry.value,
+                      locationState: selectedState.value,
+                    ),
+                  ),
+                )
+              : null,
           controller: cityTextController,
           onSelected: (value) {
             selectedCity.value = value.toString();
