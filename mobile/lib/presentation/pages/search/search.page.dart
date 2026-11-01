@@ -20,6 +20,7 @@ import 'package:immich_mobile/presentation/widgets/bottom_sheet/general_bottom_s
 import 'package:immich_mobile/presentation/widgets/search/quick_date_picker.dart';
 import 'package:immich_mobile/presentation/widgets/search/tv_date_range.dart';
 import 'package:immich_mobile/presentation/widgets/search/tv_text_search_mode.dart';
+import 'package:immich_mobile/presentation/widgets/tv/tv_build_identity.dart';
 import 'package:immich_mobile/presentation/widgets/timeline/timeline.widget.dart';
 import 'package:immich_mobile/providers/infrastructure/timeline.provider.dart';
 import 'package:immich_mobile/providers/search/search_input_focus.provider.dart';
@@ -545,14 +546,7 @@ class SearchPage extends HookConsumerWidget {
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         bottom: const bool.fromEnvironment('IMMUCH_TV_ONLY')
-            ? const PreferredSize(
-                preferredSize: Size.fromHeight(24),
-                child: Text(
-                  '${String.fromEnvironment('TV_BRANCH')} • ${String.fromEnvironment('TV_COMMIT')} ',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              )
+            ? const PreferredSize(preferredSize: Size.fromHeight(24), child: TvBuildIdentity())
             : null,
         automaticallyImplyLeading: true,
         actions: [

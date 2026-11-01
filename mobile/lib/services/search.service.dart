@@ -35,7 +35,9 @@ class SearchService {
       );
     } catch (e) {
       dPrint(() => "[ERROR] [getSearchSuggestions] $e");
-      return [];
+      // The suggestion provider must distinguish a failed request from an empty
+      // library so the TV selector can show Retry instead of hiding the failure.
+      rethrow;
     }
   }
 

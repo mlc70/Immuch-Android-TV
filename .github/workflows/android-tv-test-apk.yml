@@ -91,16 +91,24 @@ jobs:
 
       - name: Analyze modified Search filters
         working-directory: mobile
-        run: mise exec -- dart analyze lib/widgets/search/search_filter lib/presentation/pages/search/search.page.dart lib/presentation/widgets/search/tv_date_range.dart lib/presentation/widgets/tv/tv_search_choice.dart
+        run: mise exec -- dart analyze lib/widgets/search/search_filter lib/widgets/common/tag_picker.dart lib/services/search.service.dart lib/providers/search/search_filter.provider.dart lib/presentation/pages/search/search.page.dart lib/presentation/widgets/search/tv_date_range.dart lib/presentation/widgets/search/tv_text_search_mode.dart lib/presentation/widgets/tv
 
       - name: Test photo date/time preference
         working-directory: mobile
         run: mise exec -- flutter test test/domain/models/config/tv_photo_date_setting_test.dart
 
+      - name: Test retained TV login, cache and video behavior
+        working-directory: mobile
+        run: mise exec -- flutter test test/widgets/forms/login_form_tv_test.dart test/data/store/util/cache_test.dart test/domain/services/video_source_policy_test.dart test/providers/asset_viewer/video_source_provider_test.dart test/widgets/asset_viewer/video_controls_keys_test.dart
+
+      - name: Test visible build identification
+        working-directory: mobile
+        run: mise exec -- flutter test --dart-define=TV_BRANCH=feature/test --dart-define=TV_COMMIT=0123456789abcdef --dart-define=TV_BUILD=42 test/presentation/widgets/tv/tv_build_identity_test.dart
+
       - name: Build independently installable release APK
         working-directory: mobile
         run: |
-          mise exec -- flutter build apk --release --flavor tv --dart-define=IMMUCH_TV_ONLY=true --dart-define=TV_BRANCH=${GITHUB_REF_NAME} --dart-define=TV_COMMIT=${GITHUB_SHA} --build-name "3.3.0-tv.${GITHUB_RUN_NUMBER}" --build-number "$((3030021 + GITHUB_RUN_NUMBER))"
+          mise exec -- flutter build apk --release --flavor tv --dart-define=IMMUCH_TV_ONLY=true --dart-define=TV_BRANCH=${GITHUB_REF_NAME} --dart-define=TV_COMMIT=${GITHUB_SHA} --dart-define=TV_BUILD=${GITHUB_RUN_NUMBER} --build-name "3.3.0-tv.${GITHUB_RUN_NUMBER}" --build-number "$((3030021 + GITHUB_RUN_NUMBER))"
 
       - name: Stage test APK
         run: |

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:immich_mobile/widgets/search/search_filter/filter_bottom_sheet_scaffold.dart';
+import 'package:immich_mobile/presentation/widgets/tv/tv_modal_scope.dart';
 
 Future<T> showFilterBottomSheet<T>({
   required BuildContext context,
@@ -22,10 +23,6 @@ Future<T> showFilterBottomSheet<T>({
     useSafeArea: false,
     isDismissible: isDismissible,
     showDragHandle: isDismissible,
-    builder: (BuildContext context) => FocusScope(
-      traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
-      directionalTraversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
-      child: tvChild,
-    ),
+    builder: (BuildContext context) => tv ? TvModalScope(child: tvChild) : tvChild,
   );
 }

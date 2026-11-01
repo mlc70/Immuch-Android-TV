@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:immich_mobile/presentation/widgets/tv/tv_filter_list.dart';
 import 'package:immich_mobile/presentation/widgets/tv/tv_shell.widget.dart';
+import 'package:immich_mobile/presentation/widgets/tv/tv_modal_scope.dart';
 
 void main() {
   testWidgets('multi-select reaches offscreen row and arrows do not select', (tester) async {
@@ -17,7 +18,7 @@ void main() {
         builder: (context, child) => TvShell(child: child!),
         home: Scaffold(
           body: StatefulBuilder(
-            builder: (context, setState) => FocusScope(
+            builder: (context, setState) => TvModalScope(
               child: TvFilterList(
                 labels: [for (var i = 0; i < 120; i++) 'Person $i'],
                 selected: selected,
