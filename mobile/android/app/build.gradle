@@ -90,6 +90,9 @@ android {
 
     release {
       def hasKeystore = file("../key.jks").exists() && file("../key.jks").length() > 0
+      if (System.getenv("IMMUCH_TV_TEST_BUILD") == "true" && !hasKeystore) {
+        throw new GradleException("Permanent signing key is required for TV APKs; temporary signing is disabled.")
+      }
       signingConfig hasKeystore ? signingConfigs.release : signingConfigs.debug
       proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
       versionNameSuffix "-immuch360"

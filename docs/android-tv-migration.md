@@ -28,7 +28,8 @@ Search code and builds only `--flavor tv --dart-define=IMMUCH_TV_ONLY=true`.
 TV builds ignore old layout Off preferences without rewriting saved settings.
 
 Retain application ID `com.aprogsys.immuch360.tvtest` and the optional persistent
-signing secrets from r13. Label changes do not migrate or erase data. Without the
+signing secret names from r13, now required and checked against the permanent
+certificate documented in android-tv-test-apk.md. Label changes do not migrate or erase data. Without the
 same signing certificate an in-place upgrade cannot preserve data: never advise
 uninstalling a working installation as a routine upgrade step.
 

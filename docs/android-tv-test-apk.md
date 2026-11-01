@@ -1,6 +1,22 @@
 # Android TV test APK: preserve Immich login across builds
 
-The test build uses Android package ID `com.aprogsys.immuch360.tvtest` and label **Immuch TV Test** on all TV feature branches. This is separate from the official Immuch360 package. The package name alone is not enough to preserve login; **every APK must also have the same signing certificate**.
+The TV build uses Android package ID `com.aprogsys.immuch360.tvtest` and label **Immuch Android TV**. This is separate from the official Immuch360 package. The package name alone is not enough to preserve login; **every APK must also have the same signing certificate**.
+
+## Permanent identity
+
+The personal signing identity was created November 1, 2026 (October 31 Pacific).
+Certificate SHA-256: `822dd1fd322642aa8fd56f790de7ac1345aab52c542647492d86455fad667d3d`.
+The workflow checks the keystore and finished APK against this public fingerprint.
+Missing secrets, a different certificate or a missing release keystore fail the
+build. There is no temporary-signing fallback for this TV fork.
+
+The encrypted PKCS12 key and a Windows-user-protected password backup are under
+the Git-ignored `.signing/` directory. `tools/android-tv-signing.ps1` initializes
+only an absent key, signs/verifies APKs, or copies one required secret to the
+Windows clipboard without printing it. It refuses to overwrite an existing key.
+The password backup uses Windows DPAPI: do not assume it can be decrypted on a
+different Windows installation. Keep a separate secure recovery copy of the key
+and its password before retiring this computer.
 
 ## Set up a persistent signing key (once)
 
@@ -29,11 +45,15 @@ In the **fork** `mlc70/Immuch-Android-TV`, open **Settings → Secrets and varia
 
 Only two secrets are needed. The alias is fixed as `tvtest`. Keep `immuch-tv-test.jks` and its password in secure offline storage so the same signing identity can be restored later. Clear the clipboard after uploading the key.
 
-After both secrets are configured, run the [Android TV Test APK](https://github.com/mlc70/Immuch-Android-TV/actions/workflows/android-tv-test-apk.yml) workflow again. In its Summary, verify **Signing mode: persistent**. If either secret is missing, the workflow falls back to a temporary debug signing key and will warn that upgrades might not preserve app data; it won't silently claim persistence.
+After both secrets are configured, run the [Android TV APK](https://github.com/mlc70/Immuch-Android-TV/actions/workflows/android-tv-test-apk.yml) workflow on `feature/android-tv-permanent`. In its Summary, verify **Signing mode: persistent**. Missing secrets or an unexpected signer stop the build before any APK is published.
 
 ## Install/update
 
-Because older test APKs were `.pr1`, `.pr2` or `.pr3` and signed by temporary keys, **a single fresh login is required in the new `.tvtest` application**. After that, compatible future APKs made with the *same two secrets* install as in-place updates.
+The Shield's r13 install and the original r20 artifact have different temporary
+certificates. The permanent identity cannot update either of those temporary
+identities. After the permanent APK has been built and verified, replacing the old
+install requires one fresh setup. Future APKs made with the same two secrets
+install as in-place updates. Keep the old app until the permanent APK is ready.
 
 ```powershell
 adb install -r .\Immuch-Android-TV-test.apk
@@ -45,5 +65,5 @@ The app intentionally sets `android:allowBackup="false"`; copying its encrypted/
 
 ## Current status
 
-- Android TV test build workflow supports stable signing when configured, but **the GitHub repository secrets must be created by its owner**.
+- The Android TV workflow requires the permanent signing identity; the repository owner stores its two encrypted Actions secrets.
 - The build artifact's Android package ID is fixed, independently of which PR branch is being built.

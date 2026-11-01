@@ -1,8 +1,7 @@
 name: Android TV APK
 
 # A standalone build for our Android TV development branch.
-# Unlike the inherited mobile release workflows, this needs no signing secrets
-# or upstream self-hosted runners.
+# Personal signing secrets keep upgrades compatible. No upstream release runners.
 on:
   push:
     branches:
@@ -32,7 +31,8 @@ jobs:
       MISE_YES: '1'
       MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
       # Stable identity: com.aprogsys.immuch360.tvtest
-      # Stable signature: provided by optional Actions secrets (see docs below).
+      # Never rotate this identity without an explicit app-data migration plan.
+      TV_SIGNER_SHA256: '822dd1fd322642aa8fd56f790de7ac1345aab52c542647492d86455fad667d3d'
       IMMUCH_TV_TEST_BUILD: 'true'
 
     steps:
@@ -65,15 +65,21 @@ jobs:
           TV_TEST_KEYSTORE_PASSWORD: ${{ secrets.TV_TEST_KEYSTORE_PASSWORD }}
         run: |
           if [[ -z "$TV_TEST_KEYSTORE_BASE64" && -z "$TV_TEST_KEYSTORE_PASSWORD" ]]; then
-            echo "::warning::Persistent test signing is not configured. The APK can be installed, but later builds may require uninstalling it (losing login data)."
-            echo "TV_TEST_SIGNING_MODE=temporary" >> "$GITHUB_ENV"
+            echo "::error::Permanent TV signing is required. Configure TV_TEST_KEYSTORE_BASE64 and TV_TEST_KEYSTORE_PASSWORD; temporary signing is disabled."
+            exit 1
           elif [[ -z "$TV_TEST_KEYSTORE_BASE64" || -z "$TV_TEST_KEYSTORE_PASSWORD" ]]; then
             echo "::error::Both TV_TEST_KEYSTORE_BASE64 and TV_TEST_KEYSTORE_PASSWORD must be configured together."
             exit 1
           else
+            umask 077
             printf '%s' "$TV_TEST_KEYSTORE_BASE64" | base64 --decode > mobile/android/key.jks
             test -s mobile/android/key.jks
             mise exec -- keytool -list -keystore mobile/android/key.jks -alias tvtest -storepass "$TV_TEST_KEYSTORE_PASSWORD" >/dev/null
+            signer_sha=$(mise exec -- keytool -exportcert -keystore mobile/android/key.jks -alias tvtest -storepass "$TV_TEST_KEYSTORE_PASSWORD" | sha256sum | cut -d ' ' -f 1)
+            if [[ "$signer_sha" != "$TV_SIGNER_SHA256" ]]; then
+              echo "::error::Signing certificate does not match this fork's permanent identity."
+              exit 1
+            fi
             echo "ALIAS=tvtest" >> "$GITHUB_ENV"
             echo "ANDROID_KEY_PASSWORD=$TV_TEST_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
             echo "ANDROID_STORE_PASSWORD=$TV_TEST_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
@@ -114,6 +120,8 @@ jobs:
         run: |
           mkdir -p dist
           cp mobile/build/app/outputs/flutter-apk/app-tv-release.apk "dist/Immuch-Android-TV-r${GITHUB_RUN_NUMBER}.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "dist/Immuch-Android-TV-r${GITHUB_RUN_NUMBER}.apk" | tee dist/signing-verification.txt
+          grep -F "Signer #1 certificate SHA-256 digest: ${TV_SIGNER_SHA256}" dist/signing-verification.txt
           sha256sum dist/*.apk
 
       - name: Upload APK for testing
