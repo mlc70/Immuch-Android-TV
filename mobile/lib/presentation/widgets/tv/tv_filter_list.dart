@@ -26,15 +26,21 @@ class _TvFilterListState extends State<TvFilterList> {
     super.didUpdateWidget(oldWidget);
     if (widget.labels.length != oldWidget.labels.length) {
       index = 0;
-      if (scroll.hasClients) scroll.jumpTo(0);
+      if (scroll.hasClients) {
+        scroll.jumpTo(0);
+      }
     }
   }
 
   KeyEventResult key(FocusNode node, KeyEvent event) {
-    if (event is KeyUpEvent || widget.labels.isEmpty) return KeyEventResult.ignored;
+    if (event is KeyUpEvent || widget.labels.isEmpty) {
+      return KeyEventResult.ignored;
+    }
     final k = event.logicalKey;
     if (k == LogicalKeyboardKey.arrowDown || k == LogicalKeyboardKey.arrowUp) {
-      if (k == LogicalKeyboardKey.arrowUp && index == 0) return KeyEventResult.ignored;
+      if (k == LogicalKeyboardKey.arrowUp && index == 0) {
+        return KeyEventResult.ignored;
+      }
       setState(() => index = (index + (k == LogicalKeyboardKey.arrowDown ? 1 : -1)).clamp(0, widget.labels.length - 1));
       scroll.jumpTo((index * 56.0).clamp(0, scroll.position.maxScrollExtent));
       return KeyEventResult.handled;

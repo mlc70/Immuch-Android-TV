@@ -124,7 +124,9 @@ class TagPicker extends HookConsumerWidget {
                   selected: [for (final tag in queryResult) selectedTagIds.value.contains(tag.id)],
                   onToggle: (index) {
                     final next = {...selectedTagIds.value};
-                    if (!next.remove(queryResult[index].id)) next.add(queryResult[index].id);
+                    if (!next.remove(queryResult[index].id)) {
+                      next.add(queryResult[index].id);
+                    }
                     selectedTagIds.value = next;
                     onSelectExistingTag(tags.where((tag) => next.contains(tag.id)));
                   },

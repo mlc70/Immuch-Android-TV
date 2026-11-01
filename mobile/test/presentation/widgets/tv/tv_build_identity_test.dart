@@ -6,6 +6,13 @@ import 'package:immich_mobile/presentation/widgets/tv/tv_build_identity.dart';
 void main() {
   testWidgets('TV build visibly identifies branch, run and source revision', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: Scaffold(body: TvBuildIdentity())));
-    expect(find.text('TV r42 • feature/test • 0123456789ab'), findsOneWidget);
+    expect(
+      find.text(
+        const bool.hasEnvironment('TV_BUILD')
+            ? 'TV r42 • feature/test • 0123456789ab'
+            : 'TV rlocal • local • uncommitted',
+      ),
+      findsOneWidget,
+    );
   });
 }

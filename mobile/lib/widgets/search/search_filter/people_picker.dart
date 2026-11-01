@@ -59,7 +59,9 @@ class PeoplePicker extends HookConsumerWidget {
                   selected: [for (final person in filtered) selectedPeople.value.contains(person)],
                   onToggle: (index) {
                     final next = {...selectedPeople.value};
-                    if (!next.remove(filtered[index])) next.add(filtered[index]);
+                    if (!next.remove(filtered[index])) {
+                      next.add(filtered[index]);
+                    }
                     selectedPeople.value = next;
                     onSelect(next);
                   },

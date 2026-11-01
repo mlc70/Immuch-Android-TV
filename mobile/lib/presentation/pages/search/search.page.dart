@@ -563,7 +563,7 @@ class SearchPage extends HookConsumerWidget {
                         smartSearch: serverFeatures.smartSearch,
                         ocr: serverFeatures.ocr,
                       );
-                      if (selected == null || !context.mounted) return;
+                      if (selected == null || !context.mounted) { return; }
                       textSearchType.value = selected;
                       searchHintText.value = switch (selected) {
                         TextSearchType.context => context.t.sunrise_on_the_beach,

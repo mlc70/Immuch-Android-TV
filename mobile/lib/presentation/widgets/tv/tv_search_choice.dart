@@ -35,12 +35,16 @@ class _ChoiceState<T> extends State<_Choice<T>> {
   }
 
   KeyEventResult key(FocusNode node, KeyEvent event) {
-    if (event is KeyUpEvent) return KeyEventResult.ignored;
+    if (event is KeyUpEvent) {
+      return KeyEventResult.ignored;
+    }
     final k = event.logicalKey;
     if (k == LogicalKeyboardKey.escape || k == LogicalKeyboardKey.goBack) {
       Navigator.of(context).pop();
     } else if (k == LogicalKeyboardKey.enter || k == LogicalKeyboardKey.select || k == LogicalKeyboardKey.space) {
-      if (widget.entries.isNotEmpty) Navigator.of(context).pop(widget.entries[index].value);
+      if (widget.entries.isNotEmpty) {
+        Navigator.of(context).pop(widget.entries[index].value);
+      }
     } else if (k == LogicalKeyboardKey.arrowDown || k == LogicalKeyboardKey.arrowUp) {
       if (widget.entries.isNotEmpty) {
         setState(

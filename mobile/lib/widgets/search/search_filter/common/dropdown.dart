@@ -32,7 +32,9 @@ class SearchDropdown<T> extends StatelessWidget {
         valueListenable: controller,
         builder: (context, text, _) => OutlinedButton(
           onPressed: () async {
-            if (loading) return;
+            if (loading) {
+              return;
+            }
             if (onRetry != null) {
               onRetry!();
               return;
@@ -44,7 +46,9 @@ class SearchDropdown<T> extends StatelessWidget {
               entries: dropdownMenuEntries,
               current: current,
             );
-            if (value == null || !context.mounted) return;
+            if (value == null || !context.mounted) {
+              return;
+            }
             controller.text = dropdownMenuEntries.firstWhere((e) => e.value == value).label;
             onSelected?.call(value);
           },

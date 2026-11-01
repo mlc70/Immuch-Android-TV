@@ -39,7 +39,7 @@ Future<TvDeviceInfo> readTvDeviceInfo({TvApi? api}) async {
 final tvModeProvider = Provider.autoDispose<bool>((ref) {
   // The permanent fork always uses its remote UI. Keep saved layout preferences
   // intact for upgrades, but never let an old Off value disable TV controls.
-  if (const bool.fromEnvironment('IMMUCH_TV_ONLY')) return true;
+  if (const bool.fromEnvironment('IMMUCH_TV_ONLY')) { return true; }
   if (defaultTargetPlatform == TargetPlatform.iOS) {
     return false;
   }

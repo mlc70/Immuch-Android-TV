@@ -35,20 +35,28 @@ class _TvDateRangeState extends State<TvDateRange> {
           ? date.month
           : date.day,
     );
-    if (chosen == null || !mounted) return;
+    if (chosen == null || !mounted) {
+      return;
+    }
     final year = part == 0 ? chosen : date.year;
     final month = part == 1 ? chosen : date.month;
     final day = (part == 2 ? chosen : date.day).clamp(1, DateUtils.getDaysInMonth(year, month));
     var next = DateTime(year, month, day);
     final today = DateUtils.dateOnly(now);
-    if (next.isAfter(today)) next = today;
+    if (next.isAfter(today)) {
+      next = today;
+    }
     setState(() {
       if (first) {
         start = next;
-        if (end.isBefore(start)) end = start;
+        if (end.isBefore(start)) {
+          end = start;
+        }
       } else {
         end = next;
-        if (start.isAfter(end)) start = end;
+        if (start.isAfter(end)) {
+          start = end;
+        }
       }
     });
     widget.onChanged(start, end);

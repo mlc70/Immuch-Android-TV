@@ -20,13 +20,18 @@ void main() {
     addTearDown(container.dispose);
     const args = SearchSuggestionArgs(type: SearchSuggestionType.country);
     final provider = getSearchSuggestionsProvider(args);
+    when(
+      () =>
+          repo.getSearchSuggestions(SearchSuggestionType.country, country: null, state: null, make: null, model: null),
+    ).thenThrow(StateError('offline'));
     final subscription = container.listen(provider, (_, _) {});
     addTearDown(subscription.close);
-    when(() => repo.getSearchSuggestions(SearchSuggestionType.country)).thenThrow(StateError('offline'));
     await expectLater(container.read(provider.future), throwsStateError);
     expect(container.read(provider).hasError, isTrue);
-    when(() => repo.getSearchSuggestions(SearchSuggestionType.country))
-        .thenAnswer((_) async => ['USA', '', 'Canada', 'USA']);
+    when(
+      () =>
+          repo.getSearchSuggestions(SearchSuggestionType.country, country: null, state: null, make: null, model: null),
+    ).thenAnswer((_) async => ['USA', '', 'Canada', 'USA']);
     container.invalidate(provider);
     expect(await container.read(provider.future), ['Canada', 'USA']);
   });

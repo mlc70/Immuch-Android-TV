@@ -23,7 +23,7 @@ class LocationPicker extends HookConsumerWidget {
     final selectedState = useState<String?>(filter?.state);
     final selectedCity = useState<String?>(filter?.city);
 
-    final countries = ref.watch(getSearchSuggestionsProvider(SearchSuggestionArgs(type: SearchSuggestionType.country)));
+    final countries = ref.watch(getSearchSuggestionsProvider(const SearchSuggestionArgs(type: SearchSuggestionType.country)));
 
     final states = ref.watch(
       getSearchSuggestionsProvider(
