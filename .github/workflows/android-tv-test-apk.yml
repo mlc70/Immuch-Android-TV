@@ -64,6 +64,7 @@ jobs:
           TV_TEST_KEYSTORE_BASE64: ${{ secrets.TV_TEST_KEYSTORE_BASE64 }}
           TV_TEST_KEYSTORE_PASSWORD: ${{ secrets.TV_TEST_KEYSTORE_PASSWORD }}
         run: |
+          set -euo pipefail
           if [[ -z "$TV_TEST_KEYSTORE_BASE64" && -z "$TV_TEST_KEYSTORE_PASSWORD" ]]; then
             echo "::error::Permanent TV signing is required. Configure TV_TEST_KEYSTORE_BASE64 and TV_TEST_KEYSTORE_PASSWORD; temporary signing is disabled."
             exit 1
@@ -118,6 +119,7 @@ jobs:
 
       - name: Stage test APK
         run: |
+          set -euo pipefail
           mkdir -p dist
           cp mobile/build/app/outputs/flutter-apk/app-tv-release.apk "dist/Immuch-Android-TV-r${GITHUB_RUN_NUMBER}.apk"
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "dist/Immuch-Android-TV-r${GITHUB_RUN_NUMBER}.apk" | tee dist/signing-verification.txt
