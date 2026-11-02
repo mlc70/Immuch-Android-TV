@@ -8,6 +8,7 @@ class SearchField extends StatefulWidget {
   const SearchField({
     super.key,
     required this.hintText,
+    this.label,
     this.autofocus = false,
     this.controller,
     this.focusNode,
@@ -26,6 +27,7 @@ class SearchField extends StatefulWidget {
   final void Function(PointerDownEvent)? onTapOutside;
   final TextEditingController? controller;
   final String hintText;
+  final String? label;
   final EdgeInsetsGeometry contentPadding;
   final Widget? prefixIcon;
   final Widget? suffixIcon;
@@ -58,7 +60,8 @@ class _SearchFieldState extends State<SearchField> {
   Widget build(BuildContext context) {
     return TvTextEntry(
       controller: _controller,
-      label: widget.hintText,
+      label: widget.label ?? widget.hintText,
+      showHint: false,
       kind: TvTextKind.text,
       autofocus: widget.autofocus,
       onSubmitted: _onTyped,
@@ -92,7 +95,10 @@ class _SearchFieldState extends State<SearchField> {
           ),
           prefixIcon: widget.prefixIcon,
           suffixIcon: widget.suffixIcon,
-          hintText: widget.hintText,
+          labelText: MediaQuery.navigationModeOf(context) == NavigationMode.directional ? widget.label : null,
+          hintText: MediaQuery.navigationModeOf(context) == NavigationMode.directional
+              ? 'Press OK to type'
+              : widget.hintText,
         ),
       ),
     );

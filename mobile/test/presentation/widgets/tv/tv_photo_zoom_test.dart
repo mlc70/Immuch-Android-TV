@@ -6,6 +6,37 @@ import 'package:immich_mobile/widgets/photo_view/photo_view.dart';
 import 'package:immich_mobile/widgets/photo_view/src/utils/photo_view_utils.dart';
 
 void main() {
+  testWidgets('hold OK at 1x opens actions once and never short presses', (tester) async {
+    final photo = PhotoViewController(initialScale: 1)
+      ..scaleBoundaries = const ScaleBoundaries(1.0, 20.0, 1.0, Size(960, 540), Size(960, 540));
+    final zoom = TvPhotoZoom()..controller = photo;
+    var actions = 0;
+    var short = 0;
+    zoom.ok(
+      const KeyDownEvent(
+        physicalKey: PhysicalKeyboardKey.enter,
+        logicalKey: LogicalKeyboardKey.enter,
+        timeStamp: Duration.zero,
+      ),
+      () => short++,
+      onActions: () => actions++,
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    zoom.ok(
+      const KeyUpEvent(
+        physicalKey: PhysicalKeyboardKey.enter,
+        logicalKey: LogicalKeyboardKey.enter,
+        timeStamp: Duration.zero,
+      ),
+      () => short++,
+      onActions: () => actions++,
+    );
+    expect(actions, 1);
+    expect(short, 0);
+    expect(zoom.panning, isFalse);
+    zoom.dispose();
+    photo.dispose();
+  });
   testWidgets('960x540 remote zoom, hold OK, pan, exit and reset', (tester) async {
     tester.view.physicalSize = const Size(960, 540);
     tester.view.devicePixelRatio = 1;

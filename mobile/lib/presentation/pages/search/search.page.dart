@@ -700,6 +700,12 @@ class SearchPage extends HookConsumerWidget {
             ),
           ),
           child: SearchField(
+            label: switch (textSearchType.value) {
+              TextSearchType.context => 'Search text',
+              TextSearchType.filename => 'Search filename',
+              TextSearchType.description => 'Search description',
+              TextSearchType.ocr => 'Search text in photos',
+            },
             hintText: searchHintText.value,
             key: const Key('search_text_field'),
             controller: textSearchController,

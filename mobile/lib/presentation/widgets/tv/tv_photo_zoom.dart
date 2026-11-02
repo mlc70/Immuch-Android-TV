@@ -24,7 +24,7 @@ class TvPhotoZoom extends ChangeNotifier {
     _hold = null;
   }
 
-  void ok(KeyEvent event, VoidCallback shortPress) {
+  void ok(KeyEvent event, VoidCallback shortPress, {VoidCallback? onActions}) {
     if (event is KeyDownEvent) {
       cancelHold();
       _held = false;
@@ -34,6 +34,8 @@ class TvPhotoZoom extends ChangeNotifier {
         if (factor > 1.001) {
           panning = true;
           notifyListeners();
+        } else {
+          onActions?.call();
         }
       });
     } else if (event is KeyUpEvent) {

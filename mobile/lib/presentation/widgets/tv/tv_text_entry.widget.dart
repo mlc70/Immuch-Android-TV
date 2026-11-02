@@ -26,6 +26,7 @@ class TvTextEntry extends ConsumerStatefulWidget {
     required this.child,
     this.autofocus = false,
     this.focusNode,
+    this.showHint = true,
   });
 
   final TextEditingController controller;
@@ -43,6 +44,7 @@ class TvTextEntry extends ConsumerStatefulWidget {
 
   /// In TV mode only: the focus of the entry, for the field before it to move the focus here once typed in
   final FocusNode? focusNode;
+  final bool showHint;
 
   @override
   ConsumerState<TvTextEntry> createState() => _TvTextEntryState();
@@ -108,13 +110,14 @@ class _TvTextEntryState extends ConsumerState<TvTextEntry> {
             child: ExcludeFocus(child: AbsorbPointer(child: widget.child)),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.only(left: 12, top: 4),
-          child: Text(
-            context.t.tv_text_entry_hint,
-            style: context.textTheme.bodySmall?.copyWith(color: context.colorScheme.onSurfaceVariant),
+        if (widget.showHint)
+          Padding(
+            padding: const EdgeInsets.only(left: 12, top: 4),
+            child: Text(
+              context.t.tv_text_entry_hint,
+              style: context.textTheme.bodySmall?.copyWith(color: context.colorScheme.onSurfaceVariant),
+            ),
           ),
-        ),
       ],
     );
   }

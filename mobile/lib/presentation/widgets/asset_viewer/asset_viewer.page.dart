@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +23,7 @@ import 'package:immich_mobile/presentation/widgets/asset_viewer/viewer_bottom_ap
 import 'package:immich_mobile/presentation/widgets/asset_viewer/viewer_top_app_bar.widget.dart';
 import 'package:immich_mobile/presentation/widgets/tv/remote_keys.dart';
 import 'package:immich_mobile/presentation/widgets/tv/tv_photo_zoom.dart';
+import 'package:immich_mobile/presentation/widgets/tv/tv_photo_actions_api.dart';
 import 'package:immich_mobile/providers/asset_viewer/asset_viewer.provider.dart';
 import 'package:immich_mobile/providers/asset_viewer/video_player_provider.dart';
 import 'package:immich_mobile/providers/cast.provider.dart';
@@ -151,9 +153,34 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
   bool _pausedHintShown = false;
   final _photoControllers = <int, PhotoViewControllerBase>{};
   late final _photoZoom = TvPhotoZoom()..addListener(_onPhotoZoom);
+  bool _actionsOpen = false;
+
+  Future<void> _openPhotoActions() async {
+    final asset = ref.read(assetViewerProvider).currentAsset;
+    if (_actionsOpen || asset == null || !asset.isImage || !mounted) {
+      return;
+    }
+    _actionsOpen = true;
+    _photoZoom.cancelHold();
+    try {
+      await openTvPhotoActions(context, ref, asset, () {
+        final controller = _photoControllers[_currentPage];
+        if (controller == null) {
+          return;
+        }
+        _photoZoom.reset();
+        controller.rotation = (controller.rotation + math.pi / 2) % (2 * math.pi);
+      });
+    } finally {
+      _actionsOpen = false;
+      if (mounted) _rootFocus.requestFocus();
+    }
+  }
 
   void _onPhotoZoom() {
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _onTapNavigate(int direction) {
@@ -403,6 +430,9 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
   /// that plays: OK pauses, left and right seek by 10 s (Play TV criterion TV-PC). A paused video: OK plays, left and
   /// right go to the previous or next asset. Up and Down show the controls and focus the top or the bottom bar.
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (_actionsOpen) {
+      return KeyEventResult.handled;
+    }
     final key = event.logicalKey;
     final press = isRemotePress(event);
     final video = _videoPlayer;
@@ -458,7 +488,7 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
           } else {
             _showControlsAndFocus(_bottomBarFocus, withBack: false);
           }
-        });
+        }, onActions: () => unawaited(_openPhotoActions()));
         return KeyEventResult.handled;
       }
       final vertical = key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.arrowDown;
