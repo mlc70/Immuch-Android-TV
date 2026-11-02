@@ -154,18 +154,20 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
       await row.run!();
       if (mounted && reload != null && identical(reload, _reload)) {
         final rows = await reload();
-        if (mounted)
+        if (mounted) {
           setState(() {
             _submenu = [...rows, TvPhotoAction('Back to Photo Actions', _back)];
             _index = selected.clamp(0, _submenu!.length - 1);
           });
+        }
       }
       if (mounted) {
         setState(() => _message = 'Done');
       }
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() => _message = 'Could not complete action. Check connection / permissions and press OK to retry.');
+      }
     } finally {
       if (mounted) {
         setState(() => _busy = false);

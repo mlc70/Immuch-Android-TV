@@ -22,15 +22,15 @@ import 'package:immich_mobile/presentation/widgets/asset_viewer/asset_stack.prov
 import 'package:immich_mobile/presentation/widgets/asset_viewer/viewer_bottom_app_bar.widget.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/viewer_top_app_bar.widget.dart';
 import 'package:immich_mobile/presentation/widgets/tv/remote_keys.dart';
-import 'package:immich_mobile/presentation/widgets/tv/tv_photo_zoom.dart';
 import 'package:immich_mobile/presentation/widgets/tv/tv_photo_actions_api.dart';
+import 'package:immich_mobile/presentation/widgets/tv/tv_photo_zoom.dart';
 import 'package:immich_mobile/providers/asset_viewer/asset_viewer.provider.dart';
 import 'package:immich_mobile/providers/asset_viewer/video_player_provider.dart';
 import 'package:immich_mobile/providers/cast.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/current_album.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/timeline.provider.dart';
-import 'package:immich_mobile/providers/infrastructure/tv.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
+import 'package:immich_mobile/providers/infrastructure/tv.provider.dart';
 import 'package:immich_mobile/utils/system_ui.utils.dart';
 import 'package:immich_mobile/widgets/photo_view/photo_view.dart';
 
@@ -173,7 +173,9 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
       });
     } finally {
       _actionsOpen = false;
-      if (mounted) _rootFocus.requestFocus();
+      if (mounted) {
+        _rootFocus.requestFocus();
+      }
     }
   }
 
@@ -785,7 +787,9 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
         autofocus: true,
         onKeyEvent: _onKey,
         onFocusChange: (focused) {
-          if (!focused) _photoZoom.cancelHold();
+          if (!focused) {
+            _photoZoom.cancelHold();
+          }
         },
         child: viewer,
       ),
