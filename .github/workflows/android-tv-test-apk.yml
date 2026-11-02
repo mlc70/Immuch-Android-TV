@@ -106,7 +106,7 @@ jobs:
 
       - name: Test photo D-pad zoom and pan at TV resolution
         working-directory: mobile
-        run: mise exec -- flutter test test/presentation/widgets/tv/tv_photo_zoom_test.dart test/presentation/widgets/tv/tv_photo_actions_test.dart
+        run: mise exec -- flutter test test/presentation/widgets/tv/tv_photo_zoom_test.dart test/presentation/widgets/tv/tv_photo_actions_test.dart test/presentation/widgets/tv/tv_search_field_test.dart
 
       - name: Analyze TV photo actions and viewer integration
         working-directory: mobile

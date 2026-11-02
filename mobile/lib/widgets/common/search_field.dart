@@ -95,6 +95,9 @@ class _SearchFieldState extends State<SearchField> {
           ),
           prefixIcon: widget.prefixIcon,
           suffixIcon: widget.suffixIcon,
+          floatingLabelBehavior: MediaQuery.navigationModeOf(context) == NavigationMode.directional
+              ? FloatingLabelBehavior.always
+              : FloatingLabelBehavior.auto,
           labelText: MediaQuery.navigationModeOf(context) == NavigationMode.directional ? widget.label : null,
           hintText: MediaQuery.navigationModeOf(context) == NavigationMode.directional
               ? 'Press OK to type'
