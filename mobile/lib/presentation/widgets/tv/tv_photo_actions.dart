@@ -182,7 +182,7 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
         }
       }
       if (mounted) {
-        setState(() => _message = 'Done');
+        setState(() => _message = _title == 'Manage Albums' ? 'Album membership updated' : 'Done');
       }
     } catch (_) {
       if (mounted) {
