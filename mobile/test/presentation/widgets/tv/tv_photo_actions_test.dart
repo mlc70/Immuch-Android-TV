@@ -2,8 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:immich_mobile/presentation/widgets/tv/tv_photo_actions.dart';
+import 'package:immich_mobile/presentation/widgets/tv/tv_album_permissions.dart';
 
 void main() {
+  test('albumUsers grants editors writes and keeps viewers read only', () {
+    Map<String, dynamic> album(String role) => {
+      'ownerId': 'owner',
+      'albumUsers': [
+        {
+          'user': {'id': 'member'},
+          'role': role,
+        },
+      ],
+    };
+    expect(tvAlbumCanEdit(album('viewer'), 'owner'), isTrue);
+    expect(tvAlbumCanEdit(album('editor'), 'member'), isTrue);
+    expect(tvAlbumCanEdit(album('viewer'), 'member'), isFalse);
+    expect(tvAlbumCanEdit(album('editor'), 'other'), isFalse);
+    expect(tvAlbumCanEdit(album('editor'), null), isFalse);
+  });
   Future<void> open(
     WidgetTester tester, {
     Future<void> Function()? favorite,
@@ -21,8 +38,12 @@ void main() {
             body: TextButton(
               onPressed: () => showTvPhotoActions(
                 context: context,
-                details: () async => [const TvPhotoAction('Camera: test', null)],
-                albums: () async => [const TvPhotoAction('No writable albums', null)],
+                details: () async => [
+                  const TvPhotoAction('Camera: test', null),
+                ],
+                albums: () async => [
+                  const TvPhotoAction('No writable albums', null),
+                ],
                 tags: tags ?? () async => [],
                 rotate: rotate ?? () {},
                 favorite: favorite,
@@ -38,7 +59,9 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('submenu Back stays in panel; outer Back restores photo', (tester) async {
+  testWidgets('submenu Back stays in panel; outer Back restores photo', (
+    tester,
+  ) async {
     await open(tester);
     await tester.sendKeyEvent(LogicalKeyboardKey.select);
     await tester.pumpAndSettle();
@@ -52,50 +75,61 @@ void main() {
     expect(find.text('Open'), findsOneWidget);
   });
 
-  testWidgets('opening OK release does not activate Details; rotate stays local', (tester) async {
-    var rotations = 0;
-    await open(tester, rotate: () => rotations++);
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.select);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.select);
-    await tester.pumpAndSettle();
-    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-    await tester.pumpAndSettle();
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-    await tester.sendKeyEvent(LogicalKeyboardKey.select);
-    await tester.pumpAndSettle();
-    expect(rotations, 1);
-    expect(find.text('Photo Actions'), findsOneWidget);
-  });
-
-  testWidgets('favorite failure reports retry without changing favorite label', (tester) async {
-    var calls = 0;
-    await open(
-      tester,
-      favorite: () async {
-        if (++calls == 1) throw StateError('offline');
-      },
-    );
-    for (var i = 0; i < 4; i++) {
+  testWidgets(
+    'opening OK release does not activate Details; rotate stays local',
+    (tester) async {
+      var rotations = 0;
+      await open(tester, rotate: () => rotations++);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.select);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.select);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-    }
-    await tester.sendKeyEvent(LogicalKeyboardKey.select);
-    await tester.pumpAndSettle();
-    expect(find.textContaining('Could not complete action'), findsOneWidget);
-    expect(find.text('Add to Favorites'), findsOneWidget);
-    await tester.sendKeyEvent(LogicalKeyboardKey.select);
-    await tester.pumpAndSettle();
-    expect(find.text('Remove from Favorites'), findsOneWidget);
-    expect(calls, 2);
-  });
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pumpAndSettle();
+      expect(rotations, 1);
+      expect(find.text('Photo Actions'), findsOneWidget);
+    },
+  );
 
-  testWidgets('long tag lists reach offscreen rows and reload after toggle', (tester) async {
+  testWidgets(
+    'favorite failure reports retry without changing favorite label',
+    (tester) async {
+      var calls = 0;
+      await open(
+        tester,
+        favorite: () async {
+          if (++calls == 1) throw StateError('offline');
+        },
+      );
+      for (var i = 0; i < 4; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      }
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Could not complete action'), findsOneWidget);
+      expect(find.text('Add to Favorites'), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pumpAndSettle();
+      expect(find.text('Remove from Favorites'), findsOneWidget);
+      expect(calls, 2);
+    },
+  );
+
+  testWidgets('long tag lists reach offscreen rows and reload after toggle', (
+    tester,
+  ) async {
     var selected = false;
     await open(
       tester,
       favorite: () async {},
       tags: () async => List.generate(
         40,
-        (i) => TvPhotoAction('Tag $i ${selected ? 'assigned' : 'unassigned'}', () => selected = !selected),
+        (i) => TvPhotoAction(
+          'Tag $i ${selected ? 'assigned' : 'unassigned'}',
+          () => selected = !selected,
+        ),
       ),
     );
     for (var i = 0; i < 3; i++) {
@@ -117,13 +151,42 @@ void main() {
 
   testWidgets('unsupported mutations remain disabled', (tester) async {
     await open(tester);
-    for (var i = 0; i < 7; i++) {
+    for (var i = 0; i < 6; i++) {
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     }
     await tester.sendKeyEvent(LogicalKeyboardKey.select);
     await tester.pumpAndSettle();
-    expect(find.text('Delete / edit original — disabled'), findsOneWidget);
+    expect(find.textContaining('Delete'), findsNothing);
     expect(find.text('Photo Actions'), findsOneWidget);
     expect(find.text('Done'), findsNothing);
+  });
+
+  testWidgets('tag search isolates typing and Back restores unfiltered menu', (
+    tester,
+  ) async {
+    await open(
+      tester,
+      favorite: () async {},
+      tags: () async => [
+        const TvPhotoAction('Add: Alps', null),
+        const TvPhotoAction('Remove: Beach', null),
+      ],
+    );
+    for (var i = 0; i < 3; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    }
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'beach');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(find.text('Remove: Beach'), findsOneWidget);
+    expect(find.text('Add: Alps'), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('Photo Actions'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
