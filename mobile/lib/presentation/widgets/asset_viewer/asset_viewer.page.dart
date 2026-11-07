@@ -656,6 +656,8 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
 
     final tvMode = ref.watch(tvModeProvider);
     final showTvPhotoDateTime = ref.watch(appConfigProvider.select((config) => config.viewer.tvShowDateTime));
+    final tvDateBottomOffset = ref.watch(appConfigProvider.select((config) => config.viewer.tvDateBottomOffset));
+    final tvDateTimeSingleLine = ref.watch(appConfigProvider.select((config) => config.viewer.tvDateTimeSingleLine));
     final currentAsset = ref.watch(assetViewerProvider.select((s) => s.currentAsset));
     const topBar = ViewerTopAppBar();
 
@@ -739,7 +741,7 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
             if (tvMode && showTvPhotoDateTime && showingControls && !showingDetails && currentAsset?.isImage == true)
               Positioned(
                 left: 0,
-                bottom: 64,
+                bottom: tvDateBottomOffset.clamp(0, 80).toDouble(),
                 child: SafeArea(
                   top: false,
                   right: false,
@@ -749,7 +751,7 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
                       decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        child: ViewerAssetDateTime(asset: currentAsset!, alignLeft: true),
+                        child: ViewerAssetDateTime(asset: currentAsset!, alignLeft: true, singleLine: tvDateTimeSingleLine),
                       ),
                     ),
                   ),
