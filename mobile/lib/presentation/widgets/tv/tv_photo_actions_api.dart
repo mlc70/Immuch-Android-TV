@@ -25,6 +25,8 @@ Future<void> openTvPhotoActions(BuildContext context, WidgetRef ref, BaseAsset a
   final assetService = ref.read(assetServiceProvider);
   final albumApi = ref.read(albumApiRepositoryProvider);
   var favorite = asset.isFavorite;
+  // Freeze album order for this menu session; membership indicators refresh after each action.
+  List<String>? albumOrder;
 
   Future<Map<String, dynamic>> info() async {
     final value = await api.assetsApi.getAssetInfo(asset.id);
@@ -79,16 +81,27 @@ Future<void> openTvPhotoActions(BuildContext context, WidgetRef ref, BaseAsset a
             ? membership
             : (a['albumName'] as String).toLowerCase().compareTo((b['albumName'] as String).toLowerCase());
       });
+      albumOrder ??= values.map((a) => a['id'] as String).toList();
+      final positions = {for (var i = 0; i < albumOrder!.length; i++) albumOrder![i]: i};
+      values.sort((a, b) => (positions[a['id']] ?? 999999).compareTo(positions[b['id']] ?? 999999));
       return [
         for (final album in values)
           TvPhotoAction(
             '${members.contains(album['id']) ? '★ ' : ''}${album['albumName']}',
-            members.contains(album['id']) || !tvAlbumCanEdit(album, userId)
+            !tvAlbumCanEdit(album, userId)
                 ? null
                 : () async {
-                    final result = await albumApi.addAssets(album['id'] as String, [asset.id]);
-                    if (result.failed.isNotEmpty) {
-                      throw StateError('Album add failed');
+                    final id = album['id'] as String;
+                    if (members.contains(id)) {
+                      final result = await albumApi.removeAssets(id, [asset.id]);
+                      if (result.failed.isNotEmpty || !result.removed.contains(asset.id)) {
+                        throw StateError('Album remove failed');
+                      }
+                    } else {
+                      final result = await albumApi.addAssets(id, [asset.id]);
+                      if (result.failed.isNotEmpty || !result.added.contains(asset.id)) {
+                        throw StateError('Album add failed');
+                      }
                     }
                   },
             emphasized: members.contains(album['id']),
@@ -113,7 +126,17 @@ Future<void> openTvPhotoActions(BuildContext context, WidgetRef ref, BaseAsset a
         : null,
     location: writable
         ? () async {
-            final query = await tvPhotoTextInput(context, 'Add / Change Location · Search places');
+            final current = (await info())['exifInfo'] as Map? ?? {};
+            final latitude = current['latitude'];
+            final longitude = current['longitude'];
+            final hasLocation = latitude != null && longitude != null;
+            final placeName = [current['city'], current['state'], current['country']]
+                .where((v) => v != null && v.toString().isNotEmpty)
+                .join(', ');
+            final currentLocation = hasLocation
+                ? '${placeName.isEmpty ? 'Current coordinates' : placeName}: $latitude, $longitude'
+                : 'No location assigned';
+            final query = await tvPhotoTextInput(context, 'Add / Change Location · Search places', subtitle: currentLocation);
             if (query == null || query.trim().isEmpty) {
               return [];
             }
@@ -130,7 +153,7 @@ Future<void> openTvPhotoActions(BuildContext context, WidgetRef ref, BaseAsset a
                       context: context,
                       builder: (dialogContext) => AlertDialog(
                         title: const Text('Confirm Location'),
-                        content: Text('${place['name']}\n${place['latitude']}, ${place['longitude']}'),
+                        content: Text('Current: $currentLocation\nNew: ${place['name']}\n${place['latitude']}, ${place['longitude']}'),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.of(dialogContext).pop(false),
