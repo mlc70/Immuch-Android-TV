@@ -100,7 +100,7 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
       [
         TvPhotoAction('Details', () => _load('Details', widget.details)),
         TvPhotoAction('Rotate clockwise (display only)', widget.rotate),
-        TvPhotoAction('Add to Album', widget.favorite == null ? null : () => _load('Add to Album', widget.albums)),
+        TvPhotoAction('Manage Albums', widget.favorite == null ? null : () => _load('Manage Albums', widget.albums)),
         TvPhotoAction('Tags', widget.favorite == null ? null : () => _load('Tags', widget.tags)),
         TvPhotoAction(
           _favorite ? 'Remove from Favorites' : 'Add to Favorites',
@@ -130,7 +130,7 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
       _title = title;
       _query = '';
       _reload = title == 'Location' ? null : loader;
-      _submenu = [...rows, TvPhotoAction('Back to Photo Actions', _back)];
+      _submenu = [...rows, if (title != 'Manage Albums' && title != 'Tags') TvPhotoAction('Back to Photo Actions', _back)];
       _index = 0;
     });
     if (_scroll.hasClients) {
@@ -176,7 +176,7 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
         final rows = await reload();
         if (mounted) {
           setState(() {
-            _submenu = [...rows, TvPhotoAction('Back to Photo Actions', _back)];
+            _submenu = [...rows, if (_title != 'Manage Albums' && _title != 'Tags') TvPhotoAction('Back to Photo Actions', _back)];
             _index = selected.clamp(0, _rows.length - 1);
           });
         }
@@ -212,7 +212,7 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
       if (!_busy && event is KeyDownEvent) {
         _back();
       }
-    } else if (key == LogicalKeyboardKey.arrowLeft && (_title == 'Tags' || _title == 'Add to Album')) {
+    } else if (key == LogicalKeyboardKey.arrowLeft && (_title == 'Tags' || _title == 'Manage Albums')) {
       if (!_busy && event is KeyDownEvent) {
         unawaited(_search());
       }
@@ -271,7 +271,7 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
           children: [
             Text(_title, style: Theme.of(context).textTheme.headlineSmall),
             const Text('Up / Down: choose · OK: select · Back: return'),
-            if (_title == 'Tags' || _title == 'Add to Album')
+            if (_title == 'Tags' || _title == 'Manage Albums')
               ExcludeFocus(
                 child: TextButton(
                   onPressed: _busy ? null : _search,
@@ -292,7 +292,7 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
                       _rows[i].label,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontWeight: _rows[i].emphasized ? FontWeight.bold : FontWeight.normal),
+                      style: TextStyle(fontWeight: _rows[i].emphasized ? FontWeight.w700 : FontWeight.w400),
                     ),
                     textColor: _rows[i].run == null ? Theme.of(context).disabledColor : null,
                     onTap: _busy
@@ -314,15 +314,16 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
   );
 }
 
-Future<String?> tvPhotoTextInput(BuildContext context, String title, {String initial = ''}) async {
+Future<String?> tvPhotoTextInput(BuildContext context, String title, {String initial = '', String? subtitle}) async {
   return showDialog<String>(
     context: context,
-    builder: (context) => _TvPhotoTextInput(title: title, initial: initial),
+    builder: (context) => _TvPhotoTextInput(title: title, initial: initial, subtitle: subtitle),
   );
 }
 
 class _TvPhotoTextInput extends StatefulWidget {
-  const _TvPhotoTextInput({required this.title, required this.initial});
+  const _TvPhotoTextInput({required this.title, required this.initial, this.subtitle});
+  final String? subtitle;
   final String title;
   final String initial;
   @override
@@ -340,11 +341,21 @@ class _TvPhotoTextInputState extends State<_TvPhotoTextInput> {
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: Text(widget.title),
-    content: TextField(
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (widget.subtitle != null) ...[
+          Text(widget.subtitle!, style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 12),
+        ],
+        TextField(
       controller: _controller,
       autofocus: true,
       textInputAction: TextInputAction.search,
       onSubmitted: (value) => Navigator.of(context).pop(value),
+        ),
+      ],
     ),
     actions: [
       TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
