@@ -163,7 +163,7 @@ void main() {
     expect(find.text('Alpha'), findsOneWidget);
     await tester.sendKeyEvent(LogicalKeyboardKey.select);
     await tester.pumpAndSettle();
-    expect(members, isEmpty);
+    expect(members, contains('Alpha'));
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.sendKeyEvent(LogicalKeyboardKey.select);
     await tester.pumpAndSettle();
