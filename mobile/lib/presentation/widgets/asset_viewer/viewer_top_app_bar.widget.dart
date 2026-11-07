@@ -259,9 +259,10 @@ class _AppBarBackButton extends ConsumerWidget {
 class ViewerAssetDateTime extends ConsumerWidget {
   final BaseAsset asset;
 
-  const ViewerAssetDateTime({super.key, required this.asset, this.alignLeft = false});
+  const ViewerAssetDateTime({super.key, required this.asset, this.alignLeft = false, this.singleLine = false});
 
   final bool alignLeft;
+  final bool singleLine;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -272,6 +273,10 @@ class ViewerAssetDateTime extends ConsumerWidget {
 
     final dateFormatted = dateTime.formatDate();
     final timeFormatted = dateTime.formatTime(alwaysUse24HourFormat: alwaysUse24HourFormat);
+
+    if (singleLine) {
+      return Text('$dateFormatted • $timeFormatted', style: context.textTheme.labelLarge?.copyWith(color: Colors.white));
+    }
 
     return Column(
       mainAxisSize: MainAxisSize.min,
