@@ -18,6 +18,8 @@ class TvPhotoDateTimeSetting extends ConsumerWidget {
     }
 
     final showDateTime = ref.watch(appConfigProvider.select((config) => config.viewer.tvShowDateTime));
+    final singleLine = ref.watch(appConfigProvider.select((config) => config.viewer.tvDateTimeSingleLine));
+    final offset = ref.watch(appConfigProvider.select((config) => config.viewer.tvDateBottomOffset));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -28,6 +30,21 @@ class TvPhotoDateTimeSetting extends ConsumerWidget {
           subtitle: const Text('Show at bottom-left while photo controls are visible'),
           value: showDateTime,
           onChanged: (value) => unawaited(ref.read(settingsProvider).write(.viewerTvShowDateTime, value)),
+        ),
+        SwitchListTile(
+          title: const Text('Single-line photo date/time'),
+          subtitle: const Text('Off shows date above time (recommended for TV)'),
+          value: singleLine,
+          onChanged: (value) => unawaited(ref.read(settingsProvider).write(.viewerTvDateTimeSingleLine, value)),
+        ),
+        ListTile(title: const Text('Distance from bottom'), subtitle: Text('$offset px')),
+        Slider(
+          value: offset.clamp(0, 80).toDouble(),
+          min: 0,
+          max: 80,
+          divisions: 20,
+          label: '$offset px',
+          onChanged: (value) => unawaited(ref.read(settingsProvider).write(.viewerTvDateBottomOffset, value.round())),
         ),
       ],
     );
