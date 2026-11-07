@@ -26,6 +26,7 @@ void main() {
     Future<void> Function()? favorite,
     VoidCallback? rotate,
     Future<List<TvPhotoAction>> Function()? tags,
+    Future<List<TvPhotoAction>> Function()? albums,
     Future<List<TvPhotoAction>> Function()? rating,
   }) async {
     tester.view.physicalSize = const Size(960, 540);
@@ -40,7 +41,7 @@ void main() {
               onPressed: () => showTvPhotoActions(
                 context: context,
                 details: () async => [const TvPhotoAction('Camera: test', null)],
-                albums: () async => [const TvPhotoAction('No writable albums', null)],
+                albums: albums ?? () async => [const TvPhotoAction('No writable albums', null)],
                 tags: tags ?? () async => [],
                 rating: rating,
                 rotate: rotate ?? () {},
@@ -132,6 +133,49 @@ void main() {
     expect(selected, isTrue);
     expect(find.text('Tag 39 assigned'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Manage Albums toggles several memberships in place without Done or focus jump', (tester) async {
+    final members = <String>{};
+    final names = ['Alpha', 'Beta', 'Gamma'];
+    var calls = 0;
+    await open(
+      tester,
+      favorite: () async {},
+      albums: () async => [
+        for (final name in names)
+          TvPhotoAction(
+            '${members.contains(name) ? '★ ' : ''}$name',
+            () async {
+              calls++;
+              if (!members.add(name)) members.remove(name);
+            },
+            emphasized: members.contains(name),
+          ),
+      ],
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(find.text('Manage Albums'), findsOneWidget);
+    expect(find.text('Done'), findsNothing);
+    expect(find.text('Alpha'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(members, isEmpty);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(members, contains('Beta'));
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(members, contains('Gamma'));
+    expect(calls, 4);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('Photo Actions'), findsOneWidget);
   });
 
   testWidgets('rating supports five stars and clearing without closing the panel', (tester) async {
