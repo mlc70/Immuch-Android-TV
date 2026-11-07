@@ -13,12 +13,7 @@ import 'package:immich_mobile/repositories/album_api_repository.dart';
 import 'package:openapi/api.dart';
 
 /// Only organizational endpoints are exposed; never pixel edits or asset deletion.
-Future<void> openTvPhotoActions(
-  BuildContext context,
-  WidgetRef ref,
-  BaseAsset asset,
-  VoidCallback rotate,
-) {
+Future<void> openTvPhotoActions(BuildContext context, WidgetRef ref, BaseAsset asset, VoidCallback rotate) {
   final api = ref.read(apiServiceProvider);
   final userId = ref.read(currentUserProvider)?.id;
   final writable =
@@ -45,16 +40,7 @@ Future<void> openTvPhotoActions(
     List<QueryParam> query = const [],
     Map<String, dynamic>? body,
   }) async {
-    final response = await api.apiClient.invokeAPI(
-      path,
-      method,
-      query,
-      body,
-      {},
-      {},
-      'application/json',
-      [],
-    );
+    final response = await api.apiClient.invokeAPI(path, method, query, body, {}, {}, 'application/json');
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw StateError('Photo action failed (${response.statusCode})');
     }
@@ -77,31 +63,21 @@ Future<void> openTvPhotoActions(
       return [
         TvPhotoAction('File: ${asset.name}', null),
         TvPhotoAction('Taken: ${asset.createdAt.toLocal()}', null),
-        TvPhotoAction(
-          'Size: ${asset.width ?? '?'} × ${asset.height ?? '?'}',
-          null,
-        ),
+        TvPhotoAction('Size: ${asset.width ?? '?'} × ${asset.height ?? '?'}', null),
         for (final entry in exif.entries)
-          if (entry.value != null)
-            TvPhotoAction('${entry.key}: ${entry.value}', null),
+          if (entry.value != null) TvPhotoAction('${entry.key}: ${entry.value}', null),
       ];
     },
     albums: () async {
-      final values = (await request('/albums') as List)
-          .cast<Map<String, dynamic>>();
-      final members = (await request(
-        '/albums',
-        query: [QueryParam('assetId', asset.id)],
-      ) as List).map((a) => (a as Map)['id']).toSet();
+      final values = (await request('/albums') as List).cast<Map<String, dynamic>>();
+      final members = (await request('/albums', query: [QueryParam('assetId', asset.id)]) as List)
+          .map((a) => (a as Map)['id'])
+          .toSet();
       values.sort((a, b) {
-        final membership =
-            (members.contains(b['id']) ? 1 : 0) -
-            (members.contains(a['id']) ? 1 : 0);
+        final membership = (members.contains(b['id']) ? 1 : 0) - (members.contains(a['id']) ? 1 : 0);
         return membership != 0
             ? membership
-            : (a['albumName'] as String).toLowerCase().compareTo(
-                (b['albumName'] as String).toLowerCase(),
-              );
+            : (a['albumName'] as String).toLowerCase().compareTo((b['albumName'] as String).toLowerCase());
       });
       return [
         for (final album in values)
@@ -110,10 +86,7 @@ Future<void> openTvPhotoActions(
             members.contains(album['id']) || !tvAlbumCanEdit(album, userId)
                 ? null
                 : () async {
-                    final result = await albumApi.addAssets(
-                      album['id'] as String,
-                      [asset.id],
-                    );
+                    final result = await albumApi.addAssets(album['id'] as String, [asset.id]);
                     if (result.failed.isNotEmpty) {
                       throw StateError('Album add failed');
                     }
@@ -129,48 +102,26 @@ Future<void> openTvPhotoActions(
             final current = (data['exifInfo'] as Map?)?['rating'];
             return [
               for (var stars = 1; stars <= 5; stars++)
-                TvPhotoAction(
-                  '${current == stars ? '★ ' : ''}$stars stars',
-                  () async {
-                    await request(
-                      '/assets/${asset.id}',
-                      method: 'PUT',
-                      body: {'rating': stars},
-                    );
-                  },
-                  emphasized: current == stars,
-                ),
+                TvPhotoAction('${current == stars ? '★ ' : ''}$stars stars', () async {
+                  await request('/assets/${asset.id}', method: 'PUT', body: {'rating': stars});
+                }, emphasized: current == stars),
               TvPhotoAction('Clear Rating', () async {
-                await request(
-                  '/assets/${asset.id}',
-                  method: 'PUT',
-                  body: {'rating': null},
-                );
+                await request('/assets/${asset.id}', method: 'PUT', body: {'rating': null});
               }),
             ];
           }
         : null,
     location: writable
         ? () async {
-            final query = await tvPhotoTextInput(
-              context,
-              'Add / Change Location · Search places',
-            );
+            final query = await tvPhotoTextInput(context, 'Add / Change Location · Search places');
             if (query == null || query.trim().isEmpty) {
               return [];
             }
-            final places = await request(
-              '/search/places',
-              query: [QueryParam('name', query.trim())],
-            ) as List;
+            final places = await request('/search/places', query: [QueryParam('name', query.trim())]) as List;
             return [
               for (final place in places.cast<Map<String, dynamic>>())
                 TvPhotoAction(
-                  [
-                    place['name'],
-                    place['admin1name'],
-                    place['country'],
-                  ].where((v) => v != null && v != '').join(', '),
+                  [place['name'], place['admin1name'], place['country']].where((v) => v != null && v != '').join(', '),
                   () async {
                     if (!context.mounted) {
                       return;
@@ -179,18 +130,14 @@ Future<void> openTvPhotoActions(
                       context: context,
                       builder: (dialogContext) => AlertDialog(
                         title: const Text('Confirm Location'),
-                        content: Text(
-                          '${place['name']}\n${place['latitude']}, ${place['longitude']}',
-                        ),
+                        content: Text('${place['name']}\n${place['latitude']}, ${place['longitude']}'),
                         actions: [
                           TextButton(
-                            onPressed: () =>
-                                Navigator.of(dialogContext).pop(false),
+                            onPressed: () => Navigator.of(dialogContext).pop(false),
                             child: const Text('Cancel'),
                           ),
                           TextButton(
-                            onPressed: () =>
-                                Navigator.of(dialogContext).pop(true),
+                            onPressed: () => Navigator.of(dialogContext).pop(true),
                             child: const Text('Save Location'),
                           ),
                         ],
@@ -200,57 +147,34 @@ Future<void> openTvPhotoActions(
                       await request(
                         '/assets/${asset.id}',
                         method: 'PUT',
-                        body: {
-                          'latitude': place['latitude'],
-                          'longitude': place['longitude'],
-                        },
+                        body: {'latitude': place['latitude'], 'longitude': place['longitude']},
                       );
                     }
                   },
                 ),
-              if (places.isEmpty)
-                const TvPhotoAction(
-                  'No places found · Back to search again',
-                  null,
-                ),
+              if (places.isEmpty) const TvPhotoAction('No places found · Back to search again', null),
             ];
           }
         : null,
     tags: () async {
       final data = await info();
-      final assigned = (data['tags'] as List? ?? [])
-          .map((e) => (e as Map)['id'])
-          .toSet();
+      final assigned = (data['tags'] as List? ?? []).map((e) => (e as Map)['id']).toSet();
       final values = await api.tagsApi.getAllTags();
       if (values == null) {
         throw StateError('No tags response');
       }
-      values.sort(
-        (a, b) => a.value.toLowerCase().compareTo(b.value.toLowerCase()),
-      );
+      values.sort((a, b) => a.value.toLowerCase().compareTo(b.value.toLowerCase()));
       return [
         for (final tag in values)
-          TvPhotoAction(
-            '${assigned.contains(tag.id) ? 'Remove' : 'Add'}: ${tag.value}',
-            () async {
-              final result = assigned.contains(tag.id)
-                  ? await api.tagsApi.untagAssets(
-                      tag.id,
-                      BulkIdsDto(ids: [asset.id]),
-                    )
-                  : await api.tagsApi.tagAssets(
-                      tag.id,
-                      BulkIdsDto(ids: [asset.id]),
-                    );
-              if (result == null ||
-                  result.isEmpty ||
-                  result.any((r) => !r.success)) {
-                throw StateError('Tag update failed');
-              }
-            },
-          ),
-        if (values.isEmpty)
-          const TvPhotoAction('No tags available on this server', null),
+          TvPhotoAction('${assigned.contains(tag.id) ? 'Remove' : 'Add'}: ${tag.value}', () async {
+            final result = assigned.contains(tag.id)
+                ? await api.tagsApi.untagAssets(tag.id, BulkIdsDto(ids: [asset.id]))
+                : await api.tagsApi.tagAssets(tag.id, BulkIdsDto(ids: [asset.id]));
+            if (result == null || result.isEmpty || result.any((r) => !r.success)) {
+              throw StateError('Tag update failed');
+            }
+          }),
+        if (values.isEmpty) const TvPhotoAction('No tags available on this server', null),
       ];
     },
   );

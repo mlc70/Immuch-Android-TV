@@ -26,6 +26,7 @@ void main() {
     Future<void> Function()? favorite,
     VoidCallback? rotate,
     Future<List<TvPhotoAction>> Function()? tags,
+    Future<List<TvPhotoAction>> Function()? rating,
   }) async {
     tester.view.physicalSize = const Size(960, 540);
     tester.view.devicePixelRatio = 1;
@@ -38,13 +39,10 @@ void main() {
             body: TextButton(
               onPressed: () => showTvPhotoActions(
                 context: context,
-                details: () async => [
-                  const TvPhotoAction('Camera: test', null),
-                ],
-                albums: () async => [
-                  const TvPhotoAction('No writable albums', null),
-                ],
+                details: () async => [const TvPhotoAction('Camera: test', null)],
+                albums: () async => [const TvPhotoAction('No writable albums', null)],
                 tags: tags ?? () async => [],
+                rating: rating,
                 rotate: rotate ?? () {},
                 favorite: favorite,
                 isFavorite: false,
@@ -59,9 +57,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('submenu Back stays in panel; outer Back restores photo', (
-    tester,
-  ) async {
+  testWidgets('submenu Back stays in panel; outer Back restores photo', (tester) async {
     await open(tester);
     await tester.sendKeyEvent(LogicalKeyboardKey.select);
     await tester.pumpAndSettle();
@@ -75,61 +71,50 @@ void main() {
     expect(find.text('Open'), findsOneWidget);
   });
 
-  testWidgets(
-    'opening OK release does not activate Details; rotate stays local',
-    (tester) async {
-      var rotations = 0;
-      await open(tester, rotate: () => rotations++);
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.select);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.select);
-      await tester.pumpAndSettle();
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-      await tester.pumpAndSettle();
+  testWidgets('opening OK release does not activate Details; rotate stays local', (tester) async {
+    var rotations = 0;
+    await open(tester, rotate: () => rotations++);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.select);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(rotations, 1);
+    expect(find.text('Photo Actions'), findsOneWidget);
+  });
+
+  testWidgets('favorite failure reports retry without changing favorite label', (tester) async {
+    var calls = 0;
+    await open(
+      tester,
+      favorite: () async {
+        if (++calls == 1) throw StateError('offline');
+      },
+    );
+    for (var i = 0; i < 4; i++) {
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-      await tester.sendKeyEvent(LogicalKeyboardKey.select);
-      await tester.pumpAndSettle();
-      expect(rotations, 1);
-      expect(find.text('Photo Actions'), findsOneWidget);
-    },
-  );
+    }
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Could not complete action'), findsOneWidget);
+    expect(find.text('Add to Favorites'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(find.text('Remove from Favorites'), findsOneWidget);
+    expect(calls, 2);
+  });
 
-  testWidgets(
-    'favorite failure reports retry without changing favorite label',
-    (tester) async {
-      var calls = 0;
-      await open(
-        tester,
-        favorite: () async {
-          if (++calls == 1) throw StateError('offline');
-        },
-      );
-      for (var i = 0; i < 4; i++) {
-        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-      }
-      await tester.sendKeyEvent(LogicalKeyboardKey.select);
-      await tester.pumpAndSettle();
-      expect(find.textContaining('Could not complete action'), findsOneWidget);
-      expect(find.text('Add to Favorites'), findsOneWidget);
-      await tester.sendKeyEvent(LogicalKeyboardKey.select);
-      await tester.pumpAndSettle();
-      expect(find.text('Remove from Favorites'), findsOneWidget);
-      expect(calls, 2);
-    },
-  );
-
-  testWidgets('long tag lists reach offscreen rows and reload after toggle', (
-    tester,
-  ) async {
+  testWidgets('long tag lists reach offscreen rows and reload after toggle', (tester) async {
     var selected = false;
     await open(
       tester,
       favorite: () async {},
       tags: () async => List.generate(
         40,
-        (i) => TvPhotoAction(
-          'Tag $i ${selected ? 'assigned' : 'unassigned'}',
-          () => selected = !selected,
-        ),
+        (i) => TvPhotoAction('Tag $i ${selected ? 'assigned' : 'unassigned'}', () => selected = !selected),
       ),
     );
     for (var i = 0; i < 3; i++) {
@@ -149,6 +134,35 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('rating supports five stars and clearing without closing the panel', (tester) async {
+    int? value;
+    await open(
+      tester,
+      favorite: () async {},
+      rating: () async => [
+        for (var stars = 1; stars <= 5; stars++) TvPhotoAction('$stars stars', () => value = stars),
+        TvPhotoAction('Clear Rating', () => value = null),
+      ],
+    );
+    for (var i = 0; i < 5; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    }
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 4; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    }
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(value, 5);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(value, isNull);
+    expect(find.text('Star Rating'), findsOneWidget);
+    expect(find.textContaining('Delete'), findsNothing);
+  });
+
   testWidgets('unsupported mutations remain disabled', (tester) async {
     await open(tester);
     for (var i = 0; i < 6; i++) {
@@ -161,16 +175,11 @@ void main() {
     expect(find.text('Done'), findsNothing);
   });
 
-  testWidgets('tag search isolates typing and Back restores unfiltered menu', (
-    tester,
-  ) async {
+  testWidgets('tag search isolates typing and Back restores unfiltered menu', (tester) async {
     await open(
       tester,
       favorite: () async {},
-      tags: () async => [
-        const TvPhotoAction('Add: Alps', null),
-        const TvPhotoAction('Remove: Beach', null),
-      ],
+      tags: () async => [const TvPhotoAction('Add: Alps', null), const TvPhotoAction('Remove: Beach', null)],
     );
     for (var i = 0; i < 3; i++) {
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);

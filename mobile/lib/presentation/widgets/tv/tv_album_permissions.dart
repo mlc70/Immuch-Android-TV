@@ -7,7 +7,6 @@ bool tvAlbumCanEdit(Map<String, dynamic> album, String? userId) {
   }
   return (album['albumUsers'] as List? ?? []).any((entry) {
     final member = entry as Map;
-    return (member['user'] as Map?)?['id'] == userId &&
-        member['role'] == 'editor';
+    return (member['user'] as Map?)?['id'] == userId && member['role'] == 'editor';
   });
 }

@@ -94,24 +94,14 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
           ? null
           : _submenu!
                 .where(
-                  (r) =>
-                      r.label.toLowerCase().contains(_query.toLowerCase()) ||
-                      r.label == 'Back to Photo Actions',
+                  (r) => r.label.toLowerCase().contains(_query.toLowerCase()) || r.label == 'Back to Photo Actions',
                 )
                 .toList()) ??
       [
         TvPhotoAction('Details', () => _load('Details', widget.details)),
         TvPhotoAction('Rotate clockwise (display only)', widget.rotate),
-        TvPhotoAction(
-          'Add to Album',
-          widget.favorite == null
-              ? null
-              : () => _load('Add to Album', widget.albums),
-        ),
-        TvPhotoAction(
-          'Tags',
-          widget.favorite == null ? null : () => _load('Tags', widget.tags),
-        ),
+        TvPhotoAction('Add to Album', widget.favorite == null ? null : () => _load('Add to Album', widget.albums)),
+        TvPhotoAction('Tags', widget.favorite == null ? null : () => _load('Tags', widget.tags)),
         TvPhotoAction(
           _favorite ? 'Remove from Favorites' : 'Add to Favorites',
           widget.favorite == null
@@ -123,25 +113,15 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
                   }
                 },
         ),
-        TvPhotoAction(
-          'Star Rating',
-          widget.rating == null
-              ? null
-              : () => _load('Star Rating', widget.rating!),
-        ),
+        TvPhotoAction('Star Rating', widget.rating == null ? null : () => _load('Star Rating', widget.rating!)),
         TvPhotoAction(
           'Add / Change Location',
-          widget.location == null
-              ? null
-              : () => _load('Location', widget.location!),
+          widget.location == null ? null : () => _load('Location', widget.location!),
         ),
         TvPhotoAction('Close', () => Navigator.of(context).pop()),
       ];
 
-  Future<void> _load(
-    String title,
-    Future<List<TvPhotoAction>> Function() loader,
-  ) async {
+  Future<void> _load(String title, Future<List<TvPhotoAction>> Function() loader) async {
     final rows = await loader();
     if (!mounted) {
       return;
@@ -206,9 +186,7 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
       }
     } catch (_) {
       if (mounted) {
-        setState(
-          () => _message = 'Could not complete action. Check connection / permissions and press OK to retry.',
-        );
+        setState(() => _message = 'Could not complete action. Check connection / permissions and press OK to retry.');
       }
     } finally {
       if (mounted) {
@@ -234,23 +212,15 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
       if (!_busy && event is KeyDownEvent) {
         _back();
       }
-    } else if (key == LogicalKeyboardKey.arrowLeft &&
-        (_title == 'Tags' || _title == 'Add to Album')) {
+    } else if (key == LogicalKeyboardKey.arrowLeft && (_title == 'Tags' || _title == 'Add to Album')) {
       if (!_busy && event is KeyDownEvent) {
         unawaited(_search());
       }
-    } else if (key == LogicalKeyboardKey.arrowUp ||
-        key == LogicalKeyboardKey.arrowDown) {
+    } else if (key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.arrowDown) {
       if (!_busy) {
-        setState(
-          () =>
-              _index = (_index + (key == LogicalKeyboardKey.arrowDown ? 1 : -1))
-                  .clamp(0, _rows.length - 1),
-        );
+        setState(() => _index = (_index + (key == LogicalKeyboardKey.arrowDown ? 1 : -1)).clamp(0, _rows.length - 1));
         if (_scroll.hasClients) {
-          _scroll.jumpTo(
-            (_index * 64.0).clamp(0, _scroll.position.maxScrollExtent),
-          );
+          _scroll.jumpTo((_index * 64.0).clamp(0, _scroll.position.maxScrollExtent));
         }
       }
     } else if (event is KeyDownEvent &&
@@ -265,11 +235,7 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
   }
 
   Future<void> _search() async {
-    final value = await tvPhotoTextInput(
-      context,
-      'Search $_title',
-      initial: _query,
-    );
+    final value = await tvPhotoTextInput(context, 'Search $_title', initial: _query);
     if (mounted && value != null) {
       setState(() {
         _query = value;
@@ -309,9 +275,7 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
               ExcludeFocus(
                 child: TextButton(
                   onPressed: _busy ? null : _search,
-                  child: Text(
-                    'Search · Left to type${_query.isEmpty ? '' : ': $_query'}',
-                  ),
+                  child: Text('Search · Left to type${_query.isEmpty ? '' : ': $_query'}'),
                 ),
               ),
             const SizedBox(height: 12),
@@ -323,22 +287,14 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
                 itemBuilder: (context, i) => ExcludeFocus(
                   child: ListTile(
                     selected: i == _index,
-                    selectedTileColor: Theme.of(context)
-                        .colorScheme
-                        .primaryContainer,
+                    selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
                     title: Text(
                       _rows[i].label,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontWeight: _rows[i].emphasized
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                      ),
+                      style: TextStyle(fontWeight: _rows[i].emphasized ? FontWeight.bold : FontWeight.normal),
                     ),
-                    textColor: _rows[i].run == null
-                        ? Theme.of(context).disabledColor
-                        : null,
+                    textColor: _rows[i].run == null ? Theme.of(context).disabledColor : null,
                     onTap: _busy
                         ? null
                         : () {
@@ -358,11 +314,7 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
   );
 }
 
-Future<String?> tvPhotoTextInput(
-  BuildContext context,
-  String title, {
-  String initial = '',
-}) async {
+Future<String?> tvPhotoTextInput(BuildContext context, String title, {String initial = ''}) async {
   return showDialog<String>(
     context: context,
     builder: (context) => _TvPhotoTextInput(title: title, initial: initial),
@@ -395,14 +347,8 @@ class _TvPhotoTextInputState extends State<_TvPhotoTextInput> {
       onSubmitted: (value) => Navigator.of(context).pop(value),
     ),
     actions: [
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Cancel'),
-      ),
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(_controller.text),
-        child: const Text('Search'),
-      ),
+      TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+      TextButton(onPressed: () => Navigator.of(context).pop(_controller.text), child: const Text('Search')),
     ],
   );
 }
