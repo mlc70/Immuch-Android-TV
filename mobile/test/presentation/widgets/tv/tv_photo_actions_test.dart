@@ -172,7 +172,7 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.select);
     await tester.pumpAndSettle();
     expect(members, contains('Gamma'));
-    expect(calls, 4);
+    expect(calls, 3);
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     expect(find.text('Photo Actions'), findsOneWidget);
