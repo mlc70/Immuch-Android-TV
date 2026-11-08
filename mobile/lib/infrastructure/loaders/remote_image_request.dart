@@ -62,8 +62,7 @@ class RemoteImageRequest extends ImageRequest {
       return null;
     }
     final (codec, descriptor) = result;
-    descriptor.dispose();
-    return codec;
+    return _DescriptorCodec(codec, descriptor);
   }
 
   @override

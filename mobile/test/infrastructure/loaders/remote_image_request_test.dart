@@ -100,7 +100,7 @@ void main() {
     image.dispose();
   });
 
-  test('codec remains usable after releasing its image descriptor', () async {
+  test('codec retains its descriptor throughout frame decoding', () async {
     final bytes = await File('assets/feature_message/slideshow.webp').readAsBytes();
     final pointer = malloc<Uint8>(bytes.length)..asTypedList(bytes.length).setAll(0, bytes);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockDecodedMessageHandler(channel, (_) async {

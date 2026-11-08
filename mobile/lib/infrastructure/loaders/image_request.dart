@@ -195,11 +195,13 @@ abstract class ImageRequest {
     final ui.Codec codec;
     try {
       codec = await descriptor.instantiateCodec();
-    } finally {
+    } catch (_) {
       descriptor.dispose();
+      rethrow;
     }
     if (_isCancelled) {
       codec.dispose();
+      descriptor.dispose();
       return null;
     }
 
@@ -208,6 +210,7 @@ abstract class ImageRequest {
       frame = await codec.getNextFrame();
     } finally {
       codec.dispose();
+      descriptor.dispose();
     }
     if (_isCancelled) {
       frame.image.dispose();
@@ -215,5 +218,36 @@ abstract class ImageRequest {
     }
 
     return frame;
+  }
+}
+
+/// A descriptor must outlive decoding, including all frames of an animation.
+class _DescriptorCodec implements ui.Codec {
+  _DescriptorCodec(this._codec, this._descriptor);
+
+  final ui.Codec _codec;
+  final ui.ImageDescriptor _descriptor;
+  bool _disposed = false;
+
+  @override
+  int get frameCount => _codec.frameCount;
+
+  @override
+  int get repetitionCount => _codec.repetitionCount;
+
+  @override
+  Future<ui.FrameInfo> getNextFrame() => _codec.getNextFrame();
+
+  @override
+  void dispose() {
+    if (_disposed) {
+      return;
+    }
+    _disposed = true;
+    try {
+      _codec.dispose();
+    } finally {
+      _descriptor.dispose();
+    }
   }
 }
