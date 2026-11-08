@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/tv.provider.dart';
+import 'package:immich_mobile/widgets/settings/asset_viewer_settings/tv_photo_date_position_control.dart';
 import 'package:immich_ui/immich_ui.dart';
 
 /// On TVs the photo's date and time appear at bottom-left by default.
@@ -20,6 +21,7 @@ class TvPhotoDateTimeSetting extends ConsumerWidget {
     final showDateTime = ref.watch(appConfigProvider.select((config) => config.viewer.tvShowDateTime));
     final singleLine = ref.watch(appConfigProvider.select((config) => config.viewer.tvDateTimeSingleLine));
     final offset = ref.watch(appConfigProvider.select((config) => config.viewer.tvDateBottomOffset));
+    final settings = ref.watch(settingsProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -37,14 +39,10 @@ class TvPhotoDateTimeSetting extends ConsumerWidget {
           value: singleLine,
           onChanged: (value) => unawaited(ref.read(settingsProvider).write(.viewerTvDateTimeSingleLine, value)),
         ),
-        ListTile(title: const Text('Distance from bottom'), subtitle: Text('$offset px')),
-        Slider(
-          value: offset.clamp(0, 80).toDouble(),
-          min: 0,
-          max: 80,
-          divisions: 20,
-          label: '$offset px',
-          onChanged: (value) => unawaited(ref.read(settingsProvider).write(.viewerTvDateBottomOffset, value.round())),
+        TvPhotoDatePositionControl(
+          value: offset,
+          singleLine: singleLine,
+          onSave: (value) => settings.write(.viewerTvDateBottomOffset, value),
         ),
       ],
     );

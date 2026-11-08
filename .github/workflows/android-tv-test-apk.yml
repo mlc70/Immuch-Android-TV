@@ -104,7 +104,7 @@ jobs:
 
       - name: Test photo date/time preference
         working-directory: mobile
-        run: mise exec -- flutter test test/domain/models/config/tv_photo_date_setting_test.dart
+        run: mise exec -- flutter test test/domain/models/config/tv_photo_date_setting_test.dart test/presentation/widgets/tv/tv_photo_date_position_test.dart test/medium/repositories/settings_repository_test.dart
 
       - name: Test photo D-pad zoom and pan at TV resolution
         working-directory: mobile
@@ -112,7 +112,7 @@ jobs:
 
       - name: Analyze TV photo actions and viewer integration
         working-directory: mobile
-        run: mise exec -- dart analyze lib/presentation/widgets/tv/tv_photo_actions.dart lib/presentation/widgets/tv/tv_photo_actions_api.dart lib/presentation/widgets/asset_viewer/asset_viewer.page.dart lib/widgets/common/search_field.dart
+        run: mise exec -- dart analyze lib/presentation/widgets/tv/tv_photo_actions.dart lib/presentation/widgets/tv/tv_photo_actions_api.dart lib/presentation/widgets/asset_viewer/asset_viewer.page.dart lib/widgets/common/search_field.dart lib/widgets/settings/asset_viewer_settings/tv_photo_date_time_setting.dart lib/widgets/settings/asset_viewer_settings/tv_photo_date_position_control.dart
 
       - name: Test retained TV login, cache and video behavior
         working-directory: mobile
