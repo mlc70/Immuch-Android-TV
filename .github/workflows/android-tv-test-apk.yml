@@ -137,8 +137,8 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           cp mobile/build/app/outputs/flutter-apk/app-tv-release.apk "dist/Immuch-Android-TV-r32.apk"
-          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "dist/Immuch-Android-TV-r32.apk" | grep -F "package: name='com.aprogsys.immuch360.tvtest' versionCode='3030053' versionName='3.3.0-tv.32'"
-          printf 'Build: r32\nVersion: 3.3.0-tv.32\nAndroid version code: 3030053\nBranch: %s\nCommit: %s\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" > dist/build-info.txt
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "dist/Immuch-Android-TV-r32.apk" | grep -F "package: name='com.aprogsys.immuch360.tvtest' versionCode='3030053' versionName='3.3.0-tv.32-tvtest'"
+          printf 'Build: r32\nVersion: 3.3.0-tv.32-tvtest\nAndroid version code: 3030053\nBranch: %s\nCommit: %s\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" > dist/build-info.txt
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "dist/Immuch-Android-TV-r32.apk" | tee dist/signing-verification.txt
           grep -F "Signer #1 certificate SHA-256 digest: ${TV_SIGNER_SHA256}" dist/signing-verification.txt
           sha256sum dist/*.apk
