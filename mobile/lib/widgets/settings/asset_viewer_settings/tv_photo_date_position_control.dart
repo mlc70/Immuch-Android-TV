@@ -30,7 +30,9 @@ class _TvPhotoDatePositionControlState extends State<TvPhotoDatePositionControl>
   Future<void> _save(double value) async {
     _editing = false;
     _pending = value.round();
-    if (_saving) return;
+    if (_saving) {
+      return;
+    }
     setState(() {
       _saving = true;
       _failed = false;
@@ -45,9 +47,13 @@ class _TvPhotoDatePositionControlState extends State<TvPhotoDatePositionControl>
         await save(next);
       }
     } catch (_) {
-      if (mounted) setState(() => _failed = true);
+      if (mounted) {
+        setState(() => _failed = true);
+      }
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() => _saving = false);
+      }
     }
   }
 
