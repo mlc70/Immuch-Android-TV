@@ -5,6 +5,31 @@ import 'package:immich_mobile/presentation/widgets/tv/tv_photo_actions.dart';
 import 'package:immich_mobile/presentation/widgets/tv/tv_album_permissions.dart';
 
 void main() {
+  test('current album response grants owners writes without legacy ownerId', () {
+    final album = <String, dynamic>{
+      'albumUsers': [
+        {
+          'user': {'id': 'owner'},
+          'role': 'owner',
+        },
+        {
+          'user': {'id': 'editor'},
+          'role': 'editor',
+        },
+        {
+          'user': {'id': 'viewer'},
+          'role': 'viewer',
+        },
+      ],
+    };
+    expect(tvAlbumCanEdit(album, 'owner'), isTrue);
+    expect(tvAlbumCanEdit(album, 'editor'), isTrue);
+    expect(tvAlbumCanEdit(album, 'viewer'), isFalse);
+    expect(tvAlbumCanEdit(album, 'other'), isFalse);
+    expect(tvAlbumCanEdit(album, null), isFalse);
+    expect(tvAlbumCanEdit({'owner': {'id': 'owner'}}, 'owner'), isTrue);
+  });
+
   test('albumUsers grants editors writes and keeps viewers read only', () {
     Map<String, dynamic> album(String role) => {
       'ownerId': 'owner',
@@ -177,6 +202,67 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     expect(find.text('Photo Actions'), findsOneWidget);
+  });
+
+  testWidgets('owned and shared albums toggle with bold text only for photo membership', (tester) async {
+    final members = <String>{};
+    final albums = [
+      for (final entry in {'Owned': 'owner', 'Shared editor': 'editor', 'Shared viewer': 'viewer'}.entries)
+        <String, dynamic>{
+          'albumName': entry.key,
+          'albumUsers': [
+            {
+              'user': {'id': 'me'},
+              'role': entry.value,
+            },
+          ],
+        },
+    ];
+    await open(
+      tester,
+      favorite: () async {},
+      albums: () async => [
+        for (final album in albums)
+          TvPhotoAction(
+            '${members.contains(album['albumName']) ? '★ ' : ''}${album['albumName']}',
+            tvAlbumCanEdit(album, 'me')
+                ? () async {
+                    final name = album['albumName'] as String;
+                    if (!members.add(name)) members.remove(name);
+                  }
+                : null,
+            emphasized: members.contains(album['albumName']),
+          ),
+      ],
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+
+    FontWeight? weight(String label) => tester.widget<Text>(find.text(label)).style?.fontWeight;
+    expect(weight('Owned'), FontWeight.w400);
+    expect(weight('Shared editor'), FontWeight.w400);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(members, {'Owned'});
+    expect(weight('★ Owned'), FontWeight.w700);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(members, isEmpty);
+    expect(weight('Owned'), FontWeight.w400);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(members, {'Shared editor'});
+    expect(weight('★ Shared editor'), FontWeight.w700);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(members, {'Shared editor'});
+    expect(weight('Shared viewer'), FontWeight.w400);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('rating supports five stars and clearing without closing the panel', (tester) async {
