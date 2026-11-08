@@ -57,7 +57,12 @@ class RemoteImageRequest extends ImageRequest {
       return null;
     }
 
-    final (codec, _) = await _codecFromEncodedPlatformImage(info['pointer']!, info['length']!) ?? (null, null);
+    final result = await _codecFromEncodedPlatformImage(info['pointer']!, info['length']!);
+    if (result == null) {
+      return null;
+    }
+    final (codec, descriptor) = result;
+    descriptor.dispose();
     return codec;
   }
 

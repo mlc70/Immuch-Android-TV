@@ -10,26 +10,40 @@ class AssetPreloader {
 
   final TimelineService timelineService;
   final bool Function() mounted;
+  final ImageProvider Function(BaseAsset, Size, Size?) _imageProvider;
 
   Timer? _timer;
   ImageStream? _prevStream;
   ImageStream? _nextStream;
+  int _generation = 0;
+  bool _disposed = false;
 
-  AssetPreloader({required this.timelineService, required this.mounted});
+  AssetPreloader({
+    required this.timelineService,
+    required this.mounted,
+    ImageProvider Function(BaseAsset, Size, Size?)? imageProvider,
+  }) : _imageProvider = imageProvider ?? _defaultImageProvider;
+
+  static ImageProvider _defaultImageProvider(BaseAsset asset, Size size, Size? thumbnailSize) =>
+      getFullImageProvider(asset, size: size, remoteThumbnailSize: thumbnailSize);
 
   /// Preloads adjacent images with the current thumbnail size.
   void preload(int index, Size size, {Size? thumbnailSize}) {
+    if (_disposed) {
+      return;
+    }
+    final generation = ++_generation;
     unawaited(timelineService.preloadAssets(index));
     _timer?.cancel();
     _timer = Timer(Durations.medium4, () async {
-      if (!mounted()) {
+      if (_disposed || generation != _generation || !mounted()) {
         return;
       }
       final (prev, next) = await (
         timelineService.getAssetAsync(index - 1),
         timelineService.getAssetAsync(index + 1),
       ).wait;
-      if (!mounted()) {
+      if (_disposed || generation != _generation || !mounted()) {
         return;
       }
       _prevStream?.removeListener(_dummyListener);
@@ -40,13 +54,16 @@ class AssetPreloader {
   }
 
   ImageStream _resolveImage(BaseAsset asset, Size size, Size? thumbnailSize) {
-    return getFullImageProvider(asset, size: size, remoteThumbnailSize: thumbnailSize).resolve(ImageConfiguration.empty)
-      ..addListener(_dummyListener);
+    return _imageProvider(asset, size, thumbnailSize).resolve(ImageConfiguration.empty)..addListener(_dummyListener);
   }
 
   void dispose() {
+    _disposed = true;
+    _generation++;
     _timer?.cancel();
     _prevStream?.removeListener(_dummyListener);
     _nextStream?.removeListener(_dummyListener);
+    _prevStream = null;
+    _nextStream = null;
   }
 }

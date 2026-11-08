@@ -5,6 +5,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
 import 'package:immich_mobile/presentation/widgets/tv/tv_album_permissions.dart';
 import 'package:immich_mobile/presentation/widgets/tv/tv_photo_actions.dart';
+import 'package:immich_mobile/presentation/widgets/tv/tv_session_catalog.dart';
 import 'package:immich_mobile/providers/api.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/asset.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/readonly_mode.provider.dart';
@@ -26,7 +27,8 @@ Future<void> openTvPhotoActions(BuildContext context, WidgetRef ref, BaseAsset a
   final albumApi = ref.read(albumApiRepositoryProvider);
   var favorite = asset.isFavorite;
   // Freeze album order for this menu session; membership indicators refresh after each action.
-  List<String>? albumOrder;
+  Map<String, int>? albumPositions;
+  List<Map<String, dynamic>>? orderedAlbums;
 
   Future<Map<String, dynamic>> info() async {
     final value = await api.assetsApi.getAssetInfo(asset.id);
@@ -48,6 +50,18 @@ Future<void> openTvPhotoActions(BuildContext context, WidgetRef ref, BaseAsset a
     }
     return response.body.isEmpty ? null : jsonDecode(response.body);
   }
+
+  final albumCatalog = TvSessionCatalog<Map<String, dynamic>>(
+    () async => (await request('/albums') as List).cast<Map<String, dynamic>>(),
+  );
+  final tagCatalog = TvSessionCatalog(() async {
+    final values = await api.tagsApi.getAllTags();
+    if (values == null) {
+      throw StateError('No tags response');
+    }
+    values.sort((a, b) => a.value.toLowerCase().compareTo(b.value.toLowerCase()));
+    return values;
+  });
 
   return showTvPhotoActions(
     context: context,
@@ -71,19 +85,24 @@ Future<void> openTvPhotoActions(BuildContext context, WidgetRef ref, BaseAsset a
       ];
     },
     albums: () async {
-      final values = (await request('/albums') as List).cast<Map<String, dynamic>>();
-      final members = (await request('/albums', query: [QueryParam('assetId', asset.id)]) as List)
-          .map((a) => (a as Map)['id'])
-          .toSet();
-      values.sort((a, b) {
-        final membership = (members.contains(b['id']) ? 1 : 0) - (members.contains(a['id']) ? 1 : 0);
-        return membership != 0
-            ? membership
-            : (a['albumName'] as String).toLowerCase().compareTo((b['albumName'] as String).toLowerCase());
-      });
-      albumOrder ??= values.map((a) => a['id'] as String).toList();
-      final positions = {for (var i = 0; i < albumOrder!.length; i++) albumOrder![i]: i};
-      values.sort((a, b) => (positions[a['id']] ?? 999999).compareTo(positions[b['id']] ?? 999999));
+      final (values, memberships) = await (
+        albumCatalog.load(),
+        request('/albums', query: [QueryParam('assetId', asset.id)]),
+      ).wait;
+      final members = (memberships as List).map((a) => (a as Map)['id']).toSet();
+      if (albumPositions == null) {
+        values.sort((a, b) {
+          final membership = (members.contains(b['id']) ? 1 : 0) - (members.contains(a['id']) ? 1 : 0);
+          return membership != 0
+              ? membership
+              : (a['albumName'] as String).toLowerCase().compareTo((b['albumName'] as String).toLowerCase());
+        });
+        albumPositions = {for (var i = 0; i < values.length; i++) values[i]['id'] as String: i};
+      } else if (!identical(values, orderedAlbums)) {
+        final positions = albumPositions!;
+        values.sort((a, b) => (positions[a['id']] ?? 999999).compareTo(positions[b['id']] ?? 999999));
+      }
+      orderedAlbums = values;
       return [
         for (final album in values)
           TvPhotoAction(
@@ -91,17 +110,22 @@ Future<void> openTvPhotoActions(BuildContext context, WidgetRef ref, BaseAsset a
             !tvAlbumCanEdit(album, userId)
                 ? null
                 : () async {
-                    final id = album['id'] as String;
-                    if (members.contains(id)) {
-                      final result = await albumApi.removeAssets(id, [asset.id]);
-                      if (result.failed.isNotEmpty || !result.removed.contains(asset.id)) {
-                        throw StateError('Album remove failed');
+                    try {
+                      final id = album['id'] as String;
+                      if (members.contains(id)) {
+                        final result = await albumApi.removeAssets(id, [asset.id]);
+                        if (result.failed.isNotEmpty || !result.removed.contains(asset.id)) {
+                          throw StateError('Album remove failed');
+                        }
+                      } else {
+                        final result = await albumApi.addAssets(id, [asset.id]);
+                        if (result.failed.isNotEmpty || !result.added.contains(asset.id)) {
+                          throw StateError('Album add failed');
+                        }
                       }
-                    } else {
-                      final result = await albumApi.addAssets(id, [asset.id]);
-                      if (result.failed.isNotEmpty || !result.added.contains(asset.id)) {
-                        throw StateError('Album add failed');
-                      }
+                    } catch (_) {
+                      albumCatalog.invalidate();
+                      rethrow;
                     }
                   },
             emphasized: members.contains(album['id']),
@@ -130,13 +154,19 @@ Future<void> openTvPhotoActions(BuildContext context, WidgetRef ref, BaseAsset a
             final latitude = current['latitude'];
             final longitude = current['longitude'];
             final hasLocation = latitude != null && longitude != null;
-            final placeName = [current['city'], current['state'], current['country']]
-                .where((v) => v != null && v.toString().isNotEmpty)
-                .join(', ');
+            final placeName = [
+              current['city'],
+              current['state'],
+              current['country'],
+            ].where((v) => v != null && v.toString().isNotEmpty).join(', ');
             final currentLocation = hasLocation
                 ? '${placeName.isEmpty ? 'Current coordinates' : placeName}: $latitude, $longitude'
                 : 'No location assigned';
-            final query = await tvPhotoTextInput(context, 'Add / Change Location · Search places', subtitle: currentLocation);
+            final query = await tvPhotoTextInput(
+              context,
+              'Add / Change Location · Search places',
+              subtitle: currentLocation,
+            );
             if (query == null || query.trim().isEmpty) {
               return [];
             }
@@ -153,7 +183,9 @@ Future<void> openTvPhotoActions(BuildContext context, WidgetRef ref, BaseAsset a
                       context: context,
                       builder: (dialogContext) => AlertDialog(
                         title: const Text('Confirm Location'),
-                        content: Text('Current: $currentLocation\nNew: ${place['name']}\n${place['latitude']}, ${place['longitude']}'),
+                        content: Text(
+                          'Current: $currentLocation\nNew: ${place['name']}\n${place['latitude']}, ${place['longitude']}',
+                        ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -180,21 +212,21 @@ Future<void> openTvPhotoActions(BuildContext context, WidgetRef ref, BaseAsset a
           }
         : null,
     tags: () async {
-      final data = await info();
+      final (data, values) = await (info(), tagCatalog.load()).wait;
       final assigned = (data['tags'] as List? ?? []).map((e) => (e as Map)['id']).toSet();
-      final values = await api.tagsApi.getAllTags();
-      if (values == null) {
-        throw StateError('No tags response');
-      }
-      values.sort((a, b) => a.value.toLowerCase().compareTo(b.value.toLowerCase()));
       return [
         for (final tag in values)
           TvPhotoAction('${assigned.contains(tag.id) ? 'Remove' : 'Add'}: ${tag.value}', () async {
-            final result = assigned.contains(tag.id)
-                ? await api.tagsApi.untagAssets(tag.id, BulkIdsDto(ids: [asset.id]))
-                : await api.tagsApi.tagAssets(tag.id, BulkIdsDto(ids: [asset.id]));
-            if (result == null || result.isEmpty || result.any((r) => !r.success)) {
-              throw StateError('Tag update failed');
+            try {
+              final result = assigned.contains(tag.id)
+                  ? await api.tagsApi.untagAssets(tag.id, BulkIdsDto(ids: [asset.id]))
+                  : await api.tagsApi.tagAssets(tag.id, BulkIdsDto(ids: [asset.id]));
+              if (result == null || result.isEmpty || result.any((r) => !r.success)) {
+                throw StateError('Tag update failed');
+              }
+            } catch (_) {
+              tagCatalog.invalidate();
+              rethrow;
             }
           }),
         if (values.isEmpty) const TvPhotoAction('No tags available on this server', null),

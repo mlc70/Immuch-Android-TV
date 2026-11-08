@@ -8,6 +8,7 @@ on:
       - feature/android-tv-permanent
       - codex/android-tv-r30
       - codex/android-tv-r31
+      - codex/android-tv-r32
     paths:
       - 'mobile/**'
       - 'native/**'
@@ -112,7 +113,11 @@ jobs:
 
       - name: Analyze TV photo actions and viewer integration
         working-directory: mobile
-        run: mise exec -- dart analyze lib/presentation/widgets/tv/tv_photo_actions.dart lib/presentation/widgets/tv/tv_photo_actions_api.dart lib/presentation/widgets/asset_viewer/asset_viewer.page.dart lib/widgets/common/search_field.dart lib/widgets/settings/asset_viewer_settings/tv_photo_date_time_setting.dart lib/widgets/settings/asset_viewer_settings/tv_photo_date_position_control.dart
+        run: mise exec -- dart analyze lib/presentation/widgets/tv/tv_photo_actions.dart lib/presentation/widgets/tv/tv_photo_actions_api.dart lib/presentation/widgets/asset_viewer/asset_viewer.page.dart lib/presentation/widgets/asset_viewer/asset_preloader.dart lib/infrastructure/loaders/image_request.dart lib/widgets/common/search_field.dart lib/widgets/settings/asset_viewer_settings/tv_photo_date_time_setting.dart lib/widgets/settings/asset_viewer_settings/tv_photo_date_position_control.dart
+
+      - name: Test image cleanup, preloading and dialog catalogs
+        working-directory: mobile
+        run: mise exec -- flutter test test/infrastructure/loaders/remote_image_request_test.dart test/desktop/platform/desktop_local_image_request_test.dart test/presentation/widgets/images test/presentation/widgets/asset_viewer/asset_preloader_test.dart test/presentation/widgets/tv/tv_session_catalog_test.dart
 
       - name: Test retained TV login, cache and video behavior
         working-directory: mobile
@@ -125,22 +130,27 @@ jobs:
       - name: Build independently installable release APK
         working-directory: mobile
         run: |
-          mise exec -- flutter build apk --release --flavor tv --dart-define=IMMUCH_TV_ONLY=true --dart-define=TV_BRANCH=${GITHUB_REF_NAME} --dart-define=TV_COMMIT=${GITHUB_SHA} --dart-define=TV_BUILD=31 --build-name "3.3.0-tv.31" --build-number "3030052"
+          mise exec -- flutter build apk --release --flavor tv --dart-define=IMMUCH_TV_ONLY=true --dart-define=TV_BRANCH=${GITHUB_REF_NAME} --dart-define=TV_COMMIT=${GITHUB_SHA} --dart-define=TV_BUILD=32 --build-name "3.3.0-tv.32" --build-number "3030053"
 
       - name: Stage test APK
         run: |
           set -euo pipefail
           mkdir -p dist
-          cp mobile/build/app/outputs/flutter-apk/app-tv-release.apk "dist/Immuch-Android-TV-r31.apk"
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "dist/Immuch-Android-TV-r31.apk" | tee dist/signing-verification.txt
+          cp mobile/build/app/outputs/flutter-apk/app-tv-release.apk "dist/Immuch-Android-TV-r32.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "dist/Immuch-Android-TV-r32.apk" | grep -F "package: name='com.aprogsys.immuch360.tvtest' versionCode='3030053' versionName='3.3.0-tv.32'"
+          printf 'Build: r32\nVersion: 3.3.0-tv.32\nAndroid version code: 3030053\nBranch: %s\nCommit: %s\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" > dist/build-info.txt
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "dist/Immuch-Android-TV-r32.apk" | tee dist/signing-verification.txt
           grep -F "Signer #1 certificate SHA-256 digest: ${TV_SIGNER_SHA256}" dist/signing-verification.txt
           sha256sum dist/*.apk
 
       - name: Upload APK for testing
         uses: actions/upload-artifact@v4
         with:
-          name: Immuch-Android-TV-r31
-          path: dist/*.apk
+          name: Immuch-Android-TV-r32
+          path: |
+            dist/*.apk
+            dist/build-info.txt
+            dist/signing-verification.txt
           if-no-files-found: error
           retention-days: 14
 
@@ -149,8 +159,8 @@ jobs:
         run: |
           echo '### Android TV test APK built successfully' >> "$GITHUB_STEP_SUMMARY"
           echo '' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Download **Immuch-Android-TV-r31** from the Artifacts section of this run.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Unzip it and install **Immuch-Android-TV-r31.apk**.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Download **Immuch-Android-TV-r32** from the Artifacts section of this run.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Unzip it and install **Immuch-Android-TV-r32.apk**.' >> "$GITHUB_STEP_SUMMARY"
           echo "The package is **com.aprogsys.immuch360.tvtest**, label **Immuch Android TV**. Build run: ${GITHUB_RUN_NUMBER}." >> "$GITHUB_STEP_SUMMARY"
           echo "Signing mode: **${TV_TEST_SIGNING_MODE}**" >> "$GITHUB_STEP_SUMMARY"
           echo 'To preserve login/settings, upgrade only with the same signing certificate. If Android rejects the signature, keep the installed app and configure persistent signing before upgrading.' >> "$GITHUB_STEP_SUMMARY"

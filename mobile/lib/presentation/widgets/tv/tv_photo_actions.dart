@@ -88,38 +88,53 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
   bool _consumeOpeningRelease = true;
   late bool _favorite = widget.isFavorite;
   String _query = '';
+  List<TvPhotoAction>? _filteredSource;
+  List<TvPhotoAction>? _filteredRows;
+  String? _filteredQuery;
 
-  List<TvPhotoAction> get _rows =>
-      (_submenu == null
-          ? null
-          : _submenu!
-                .where(
-                  (r) => r.label.toLowerCase().contains(_query.toLowerCase()) || r.label == 'Back to Photo Actions',
-                )
-                .toList()) ??
-      [
-        TvPhotoAction('Details', () => _load('Details', widget.details)),
-        TvPhotoAction('Rotate clockwise (display only)', widget.rotate),
-        TvPhotoAction('Manage Albums', widget.favorite == null ? null : () => _load('Manage Albums', widget.albums)),
-        TvPhotoAction('Tags', widget.favorite == null ? null : () => _load('Tags', widget.tags)),
-        TvPhotoAction(
-          _favorite ? 'Remove from Favorites' : 'Add to Favorites',
-          widget.favorite == null
-              ? null
-              : () async {
-                  await widget.favorite!();
-                  if (mounted) {
-                    setState(() => _favorite = !_favorite);
-                  }
-                },
-        ),
-        TvPhotoAction('Star Rating', widget.rating == null ? null : () => _load('Star Rating', widget.rating!)),
-        TvPhotoAction(
-          'Add / Change Location',
-          widget.location == null ? null : () => _load('Location', widget.location!),
-        ),
-        TvPhotoAction('Close', () => Navigator.of(context).pop()),
-      ];
+  List<TvPhotoAction> get _rows {
+    final submenu = _submenu;
+    if (submenu != null) {
+      if (_query.isEmpty) {
+        _filteredSource = null;
+        _filteredRows = null;
+        _filteredQuery = null;
+        return submenu;
+      }
+      if (!identical(_filteredSource, submenu) || _filteredQuery != _query) {
+        final query = _query.toLowerCase();
+        _filteredRows = submenu
+            .where((r) => r.label.toLowerCase().contains(query) || r.label == 'Back to Photo Actions')
+            .toList();
+        _filteredSource = submenu;
+        _filteredQuery = _query;
+      }
+      return _filteredRows!;
+    }
+    return [
+      TvPhotoAction('Details', () => _load('Details', widget.details)),
+      TvPhotoAction('Rotate clockwise (display only)', widget.rotate),
+      TvPhotoAction('Manage Albums', widget.favorite == null ? null : () => _load('Manage Albums', widget.albums)),
+      TvPhotoAction('Tags', widget.favorite == null ? null : () => _load('Tags', widget.tags)),
+      TvPhotoAction(
+        _favorite ? 'Remove from Favorites' : 'Add to Favorites',
+        widget.favorite == null
+            ? null
+            : () async {
+                await widget.favorite!();
+                if (mounted) {
+                  setState(() => _favorite = !_favorite);
+                }
+              },
+      ),
+      TvPhotoAction('Star Rating', widget.rating == null ? null : () => _load('Star Rating', widget.rating!)),
+      TvPhotoAction(
+        'Add / Change Location',
+        widget.location == null ? null : () => _load('Location', widget.location!),
+      ),
+      TvPhotoAction('Close', () => Navigator.of(context).pop()),
+    ];
+  }
 
   Future<void> _load(String title, Future<List<TvPhotoAction>> Function() loader) async {
     final rows = await loader();
@@ -130,7 +145,10 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
       _title = title;
       _query = '';
       _reload = title == 'Location' ? null : loader;
-      _submenu = [...rows, if (title != 'Manage Albums' && title != 'Tags') TvPhotoAction('Back to Photo Actions', _back)];
+      _submenu = [
+        ...rows,
+        if (title != 'Manage Albums' && title != 'Tags') TvPhotoAction('Back to Photo Actions', _back),
+      ];
       _index = 0;
     });
     if (_scroll.hasClients) {
@@ -144,6 +162,9 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
     } else {
       setState(() {
         _submenu = null;
+        _filteredSource = null;
+        _filteredRows = null;
+        _filteredQuery = null;
         _query = '';
         _reload = null;
         _index = 0;
@@ -157,10 +178,11 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
   }
 
   Future<void> _activate() async {
-    if (_busy || _rows.isEmpty) {
+    final rows = _rows;
+    if (_busy || rows.isEmpty) {
       return;
     }
-    final row = _rows[_index];
+    final row = rows[_index];
     final reload = _reload;
     final selected = _index;
     if (row.run == null) {
@@ -176,7 +198,10 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
         final rows = await reload();
         if (mounted) {
           setState(() {
-            _submenu = [...rows, if (_title != 'Manage Albums' && _title != 'Tags') TvPhotoAction('Back to Photo Actions', _back)];
+            _submenu = [
+              ...rows,
+              if (_title != 'Manage Albums' && _title != 'Tags') TvPhotoAction('Back to Photo Actions', _back),
+            ];
             _index = selected.clamp(0, _rows.length - 1);
           });
         }
@@ -254,64 +279,67 @@ class _TvPhotoActionsState extends State<TvPhotoActions> {
   }
 
   @override
-  Widget build(BuildContext context) => PopScope(
-    canPop: _submenu == null && !_busy,
-    onPopInvokedWithResult: (didPop, _) {
-      if (!didPop && !_busy) {
-        _back();
-      }
-    },
-    child: Focus(
-      autofocus: true,
-      onKeyEvent: _key,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(_title, style: Theme.of(context).textTheme.headlineSmall),
-            const Text('Up / Down: choose · OK: select · Back: return'),
-            if (_title == 'Tags' || _title == 'Manage Albums')
-              ExcludeFocus(
-                child: TextButton(
-                  onPressed: _busy ? null : _search,
-                  child: Text('Search · Left to type${_query.isEmpty ? '' : ': $_query'}'),
+  Widget build(BuildContext context) {
+    final rows = _rows;
+    return PopScope(
+      canPop: _submenu == null && !_busy,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && !_busy) {
+          _back();
+        }
+      },
+      child: Focus(
+        autofocus: true,
+        onKeyEvent: _key,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(_title, style: Theme.of(context).textTheme.headlineSmall),
+              const Text('Up / Down: choose · OK: select · Back: return'),
+              if (_title == 'Tags' || _title == 'Manage Albums')
+                ExcludeFocus(
+                  child: TextButton(
+                    onPressed: _busy ? null : _search,
+                    child: Text('Search · Left to type${_query.isEmpty ? '' : ': $_query'}'),
+                  ),
                 ),
-              ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: ListView.builder(
-                controller: _scroll,
-                itemCount: _rows.length,
-                itemExtent: 64,
-                itemBuilder: (context, i) => ExcludeFocus(
-                  child: ListTile(
-                    selected: i == _index,
-                    selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
-                    title: Text(
-                      _rows[i].label,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontWeight: _rows[i].emphasized ? FontWeight.w700 : FontWeight.w400),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.builder(
+                  controller: _scroll,
+                  itemCount: rows.length,
+                  itemExtent: 64,
+                  itemBuilder: (context, i) => ExcludeFocus(
+                    child: ListTile(
+                      selected: i == _index,
+                      selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
+                      title: Text(
+                        rows[i].label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontWeight: rows[i].emphasized ? FontWeight.w700 : FontWeight.w400),
+                      ),
+                      textColor: rows[i].run == null ? Theme.of(context).disabledColor : null,
+                      onTap: _busy
+                          ? null
+                          : () {
+                              setState(() => _index = i);
+                              unawaited(_activate());
+                            },
                     ),
-                    textColor: _rows[i].run == null ? Theme.of(context).disabledColor : null,
-                    onTap: _busy
-                        ? null
-                        : () {
-                            setState(() => _index = i);
-                            unawaited(_activate());
-                          },
                   ),
                 ),
               ),
-            ),
-            if (_busy) const LinearProgressIndicator(),
-            Text(_message, maxLines: 3),
-          ],
+              if (_busy) const LinearProgressIndicator(),
+              Text(_message, maxLines: 3),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 Future<String?> tvPhotoTextInput(BuildContext context, String title, {String initial = '', String? subtitle}) async {
@@ -350,10 +378,10 @@ class _TvPhotoTextInputState extends State<_TvPhotoTextInput> {
           const SizedBox(height: 12),
         ],
         TextField(
-      controller: _controller,
-      autofocus: true,
-      textInputAction: TextInputAction.search,
-      onSubmitted: (value) => Navigator.of(context).pop(value),
+          controller: _controller,
+          autofocus: true,
+          textInputAction: TextInputAction.search,
+          onSubmitted: (value) => Navigator.of(context).pop(value),
         ),
       ],
     ),

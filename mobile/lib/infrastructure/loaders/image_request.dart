@@ -62,8 +62,12 @@ abstract class ImageRequest {
       return null;
     }
 
-    final descriptor = await ui.ImageDescriptor.encoded(buffer);
-    buffer.dispose();
+    final ui.ImageDescriptor descriptor;
+    try {
+      descriptor = await ui.ImageDescriptor.encoded(buffer);
+    } finally {
+      buffer.dispose();
+    }
     if (_isCancelled) {
       descriptor.dispose();
       return null;
@@ -75,7 +79,13 @@ abstract class ImageRequest {
       _targetSize(descriptor.width, descriptor.height, decodeSize),
       maxLongSide,
     );
-    final codec = await descriptor.instantiateCodec(targetWidth: target?.$1, targetHeight: target?.$2);
+    final ui.Codec codec;
+    try {
+      codec = await descriptor.instantiateCodec(targetWidth: target?.$1, targetHeight: target?.$2);
+    } catch (_) {
+      descriptor.dispose();
+      rethrow;
+    }
     if (_isCancelled) {
       descriptor.dispose();
       codec.dispose();
@@ -108,9 +118,13 @@ abstract class ImageRequest {
       return null;
     }
 
-    final frame = await codec.getNextFrame();
-    descriptor.dispose();
-    codec.dispose();
+    final ui.FrameInfo frame;
+    try {
+      frame = await codec.getNextFrame();
+    } finally {
+      descriptor.dispose();
+      codec.dispose();
+    }
     if (_isCancelled) {
       frame.image.dispose();
       return null;
@@ -165,25 +179,36 @@ abstract class ImageRequest {
       return null;
     }
 
-    final descriptor = ui.ImageDescriptor.raw(
-      buffer,
-      width: width,
-      height: height,
-      rowBytes: rowBytes,
-      pixelFormat: ui.PixelFormat.rgba8888,
-    );
-    buffer.dispose();
+    final ui.ImageDescriptor descriptor;
+    try {
+      descriptor = ui.ImageDescriptor.raw(
+        buffer,
+        width: width,
+        height: height,
+        rowBytes: rowBytes,
+        pixelFormat: ui.PixelFormat.rgba8888,
+      );
+    } finally {
+      buffer.dispose();
+    }
 
-    final codec = await descriptor.instantiateCodec();
-    if (_isCancelled) {
+    final ui.Codec codec;
+    try {
+      codec = await descriptor.instantiateCodec();
+    } finally {
       descriptor.dispose();
+    }
+    if (_isCancelled) {
       codec.dispose();
       return null;
     }
 
-    final frame = await codec.getNextFrame();
-    descriptor.dispose();
-    codec.dispose();
+    final ui.FrameInfo frame;
+    try {
+      frame = await codec.getNextFrame();
+    } finally {
+      codec.dispose();
+    }
     if (_isCancelled) {
       frame.image.dispose();
       return null;

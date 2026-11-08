@@ -4,6 +4,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:immich_mobile/presentation/widgets/tv/tv_photo_actions.dart';
 import 'package:immich_mobile/presentation/widgets/tv/tv_album_permissions.dart';
 
+class _CountedAction extends TvPhotoAction {
+  _CountedAction(this.name, this.onRead) : super('', null);
+  final String name;
+  final VoidCallback onRead;
+  @override
+  String get label {
+    onRead();
+    return name;
+  }
+}
+
 void main() {
   test('current album response grants owners writes without legacy ownerId', () {
     final album = <String, dynamic>{
@@ -27,7 +38,12 @@ void main() {
     expect(tvAlbumCanEdit(album, 'viewer'), isFalse);
     expect(tvAlbumCanEdit(album, 'other'), isFalse);
     expect(tvAlbumCanEdit(album, null), isFalse);
-    expect(tvAlbumCanEdit({'owner': {'id': 'owner'}}, 'owner'), isTrue);
+    expect(
+      tvAlbumCanEdit({
+        'owner': {'id': 'owner'},
+      }, 'owner'),
+      isTrue,
+    );
   });
 
   test('albumUsers grants editors writes and keeps viewers read only', () {
@@ -169,14 +185,10 @@ void main() {
       favorite: () async {},
       albums: () async => [
         for (final name in names)
-          TvPhotoAction(
-            '${members.contains(name) ? '★ ' : ''}$name',
-            () async {
-              calls++;
-              if (!members.add(name)) members.remove(name);
-            },
-            emphasized: members.contains(name),
-          ),
+          TvPhotoAction('${members.contains(name) ? '★ ' : ''}$name', () async {
+            calls++;
+            if (!members.add(name)) members.remove(name);
+          }, emphasized: members.contains(name)),
       ],
     );
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
@@ -292,6 +304,25 @@ void main() {
     expect(value, isNull);
     expect(find.text('Star Rating'), findsOneWidget);
     expect(find.textContaining('Delete'), findsNothing);
+  });
+
+  testWidgets('navigating an unfiltered large menu reads only the visible labels', (tester) async {
+    var labelReads = 0;
+    await open(
+      tester,
+      favorite: () async {},
+      tags: () async => List.generate(2000, (i) => _CountedAction('Tag $i', () => labelReads++)),
+    );
+    for (var i = 0; i < 3; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    }
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    labelReads = 0;
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    expect(labelReads, lessThan(100), reason: 'D-pad navigation must not scan all 2000 labels');
+    expect(find.text('Tag 1'), findsOneWidget);
   });
 
   testWidgets('unsupported mutations remain disabled', (tester) async {

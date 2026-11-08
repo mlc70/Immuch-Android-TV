@@ -100,6 +100,52 @@ void main() {
     image.dispose();
   });
 
+  test('codec remains usable after releasing its image descriptor', () async {
+    final bytes = await File('assets/feature_message/slideshow.webp').readAsBytes();
+    final pointer = malloc<Uint8>(bytes.length)..asTypedList(bytes.length).setAll(0, bytes);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockDecodedMessageHandler(channel, (_) async {
+      return <Object?>[
+        <Object?, Object?>{'pointer': pointer.address, 'length': bytes.length},
+      ];
+    });
+    final codec = await RemoteImageRequest(uri: 'https://example.test/animation').loadCodec();
+    expect(codec, isNotNull);
+    try {
+      for (var i = 0; i < 2; i++) {
+        final frame = await codec!.getNextFrame();
+        expect(frame.image.width, greaterThan(0));
+        frame.image.dispose();
+      }
+    } finally {
+      codec?.dispose();
+    }
+  });
+
+  test('corrupt encoded data reports an error rather than retaining a pending load', () async {
+    final pointer = malloc<Uint8>(4)..asTypedList(4).fillRange(0, 4, 0);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockDecodedMessageHandler(channel, (_) async {
+      return <Object?>[
+        <Object?, Object?>{'pointer': pointer.address, 'length': 4},
+      ];
+    });
+    final request = RemoteImageRequest(uri: 'https://example.test/corrupt');
+    await expectLater(request.loadCodec(), throwsA(isA<Exception>()));
+  });
+
+  test('native pixel frames remain usable after codec and descriptor cleanup', () async {
+    final pointer = malloc<Uint8>(16)..asTypedList(16).fillRange(0, 16, 255);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockDecodedMessageHandler(channel, (_) async {
+      return <Object?>[
+        <Object?, Object?>{'pointer': pointer.address, 'width': 2, 'height': 2, 'rowBytes': 8},
+      ];
+    });
+    final info = await RemoteImageRequest(uri: 'https://example.test/pixels')
+        .load((_, {getTargetSize}) => throw UnimplementedError());
+    expect(info?.image.width, 2);
+    expect(info?.image.height, 2);
+    info?.dispose();
+  });
+
   test('uses the decode size in the provider cache key', () {
     const small = RemoteImageProvider(url: 'https://example.test/thumbnail', decodeSize: ui.Size.square(160));
     const large = RemoteImageProvider(url: 'https://example.test/thumbnail', decodeSize: ui.Size.square(320));
