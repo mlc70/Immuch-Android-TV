@@ -36,6 +36,24 @@ void main() {
   });
 
   group('write', () {
+    test('TV photo position and layout survive a settings reload including default reset', () async {
+      await sut.write(SettingsKey.viewerTvDateBottomOffset, 0);
+      await sut.write(SettingsKey.viewerTvDateTimeSingleLine, true);
+      await sut.refresh();
+      expect(sut.appConfig.viewer.tvDateBottomOffset, 0);
+      expect(sut.appConfig.viewer.tvDateTimeSingleLine, isTrue);
+
+      await sut.write(SettingsKey.viewerTvDateBottomOffset, 80);
+      await sut.refresh();
+      expect(sut.appConfig.viewer.tvDateBottomOffset, 80);
+
+      await sut.write(SettingsKey.viewerTvDateBottomOffset, 12);
+      await sut.write(SettingsKey.viewerTvDateTimeSingleLine, false);
+      await sut.refresh();
+      expect(sut.appConfig.viewer.tvDateBottomOffset, 12);
+      expect(sut.appConfig.viewer.tvDateTimeSingleLine, isFalse);
+    });
+
     test('persists a value and reflects it in the composed view', () async {
       await sut.write(.themeMode, ThemeMode.dark);
       expect(sut.appConfig.theme.mode, ThemeMode.dark);

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/tv.provider.dart';
+import 'package:immich_mobile/widgets/settings/asset_viewer_settings/tv_photo_date_position_control.dart';
 import 'package:immich_ui/immich_ui.dart';
 
 /// On TVs the photo's date and time appear at bottom-left by default.
@@ -18,6 +19,9 @@ class TvPhotoDateTimeSetting extends ConsumerWidget {
     }
 
     final showDateTime = ref.watch(appConfigProvider.select((config) => config.viewer.tvShowDateTime));
+    final singleLine = ref.watch(appConfigProvider.select((config) => config.viewer.tvDateTimeSingleLine));
+    final offset = ref.watch(appConfigProvider.select((config) => config.viewer.tvDateBottomOffset));
+    final settings = ref.watch(settingsProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -28,6 +32,17 @@ class TvPhotoDateTimeSetting extends ConsumerWidget {
           subtitle: const Text('Show at bottom-left while photo controls are visible'),
           value: showDateTime,
           onChanged: (value) => unawaited(ref.read(settingsProvider).write(.viewerTvShowDateTime, value)),
+        ),
+        SwitchListTile(
+          title: const Text('Single-line photo date/time'),
+          subtitle: const Text('Off shows date above time (recommended for TV)'),
+          value: singleLine,
+          onChanged: (value) => unawaited(ref.read(settingsProvider).write(.viewerTvDateTimeSingleLine, value)),
+        ),
+        TvPhotoDatePositionControl(
+          value: offset,
+          singleLine: singleLine,
+          onSave: (value) => settings.write(.viewerTvDateBottomOffset, value),
         ),
       ],
     );

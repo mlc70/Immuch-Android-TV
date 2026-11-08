@@ -5,6 +5,31 @@ import 'package:immich_mobile/presentation/widgets/tv/tv_photo_actions.dart';
 import 'package:immich_mobile/presentation/widgets/tv/tv_album_permissions.dart';
 
 void main() {
+  test('current album response grants owners writes without legacy ownerId', () {
+    final album = <String, dynamic>{
+      'albumUsers': [
+        {
+          'user': {'id': 'owner'},
+          'role': 'owner',
+        },
+        {
+          'user': {'id': 'editor'},
+          'role': 'editor',
+        },
+        {
+          'user': {'id': 'viewer'},
+          'role': 'viewer',
+        },
+      ],
+    };
+    expect(tvAlbumCanEdit(album, 'owner'), isTrue);
+    expect(tvAlbumCanEdit(album, 'editor'), isTrue);
+    expect(tvAlbumCanEdit(album, 'viewer'), isFalse);
+    expect(tvAlbumCanEdit(album, 'other'), isFalse);
+    expect(tvAlbumCanEdit(album, null), isFalse);
+    expect(tvAlbumCanEdit({'owner': {'id': 'owner'}}, 'owner'), isTrue);
+  });
+
   test('albumUsers grants editors writes and keeps viewers read only', () {
     Map<String, dynamic> album(String role) => {
       'ownerId': 'owner',
@@ -26,6 +51,7 @@ void main() {
     Future<void> Function()? favorite,
     VoidCallback? rotate,
     Future<List<TvPhotoAction>> Function()? tags,
+    Future<List<TvPhotoAction>> Function()? albums,
     Future<List<TvPhotoAction>> Function()? rating,
   }) async {
     tester.view.physicalSize = const Size(960, 540);
@@ -40,7 +66,7 @@ void main() {
               onPressed: () => showTvPhotoActions(
                 context: context,
                 details: () async => [const TvPhotoAction('Camera: test', null)],
-                albums: () async => [const TvPhotoAction('No writable albums', null)],
+                albums: albums ?? () async => [const TvPhotoAction('No writable albums', null)],
                 tags: tags ?? () async => [],
                 rating: rating,
                 rotate: rotate ?? () {},
@@ -131,6 +157,111 @@ void main() {
     await tester.pumpAndSettle();
     expect(selected, isTrue);
     expect(find.text('Tag 39 assigned'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Manage Albums toggles several memberships in place without Done or focus jump', (tester) async {
+    final members = <String>{};
+    final names = ['Alpha', 'Beta', 'Gamma'];
+    var calls = 0;
+    await open(
+      tester,
+      favorite: () async {},
+      albums: () async => [
+        for (final name in names)
+          TvPhotoAction(
+            '${members.contains(name) ? '★ ' : ''}$name',
+            () async {
+              calls++;
+              if (!members.add(name)) members.remove(name);
+            },
+            emphasized: members.contains(name),
+          ),
+      ],
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(find.text('Manage Albums'), findsOneWidget);
+    // Success feedback may say Done; it must not become a navigation row.
+    expect(find.widgetWithText(ListTile, 'Done'), findsNothing);
+    expect(find.text('Alpha'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(members, contains('Alpha'));
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(members, contains('Beta'));
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(members, contains('Gamma'));
+    expect(calls, 3);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('Photo Actions'), findsOneWidget);
+  });
+
+  testWidgets('owned and shared albums toggle with bold text only for photo membership', (tester) async {
+    final members = <String>{};
+    final albums = [
+      for (final entry in {'Owned': 'owner', 'Shared editor': 'editor', 'Shared viewer': 'viewer'}.entries)
+        <String, dynamic>{
+          'albumName': entry.key,
+          'albumUsers': [
+            {
+              'user': {'id': 'me'},
+              'role': entry.value,
+            },
+          ],
+        },
+    ];
+    await open(
+      tester,
+      favorite: () async {},
+      albums: () async => [
+        for (final album in albums)
+          TvPhotoAction(
+            '${members.contains(album['albumName']) ? '★ ' : ''}${album['albumName']}',
+            tvAlbumCanEdit(album, 'me')
+                ? () async {
+                    final name = album['albumName'] as String;
+                    if (!members.add(name)) members.remove(name);
+                  }
+                : null,
+            emphasized: members.contains(album['albumName']),
+          ),
+      ],
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+
+    FontWeight? weight(String label) => tester.widget<Text>(find.text(label)).style?.fontWeight;
+    expect(weight('Owned'), FontWeight.w400);
+    expect(weight('Shared editor'), FontWeight.w400);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(members, {'Owned'});
+    expect(weight('★ Owned'), FontWeight.w700);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(members, isEmpty);
+    expect(weight('Owned'), FontWeight.w400);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(members, {'Shared editor'});
+    expect(weight('★ Shared editor'), FontWeight.w700);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(members, {'Shared editor'});
+    expect(weight('Shared viewer'), FontWeight.w400);
     expect(tester.takeException(), isNull);
   });
 

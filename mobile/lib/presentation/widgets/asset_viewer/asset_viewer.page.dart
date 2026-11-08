@@ -23,6 +23,7 @@ import 'package:immich_mobile/presentation/widgets/asset_viewer/viewer_bottom_ap
 import 'package:immich_mobile/presentation/widgets/asset_viewer/viewer_top_app_bar.widget.dart';
 import 'package:immich_mobile/presentation/widgets/tv/remote_keys.dart';
 import 'package:immich_mobile/presentation/widgets/tv/tv_photo_actions_api.dart';
+import 'package:immich_mobile/presentation/widgets/tv/tv_photo_date_overlay.dart';
 import 'package:immich_mobile/presentation/widgets/tv/tv_photo_zoom.dart';
 import 'package:immich_mobile/providers/asset_viewer/asset_viewer.provider.dart';
 import 'package:immich_mobile/providers/asset_viewer/video_player_provider.dart';
@@ -656,6 +657,8 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
 
     final tvMode = ref.watch(tvModeProvider);
     final showTvPhotoDateTime = ref.watch(appConfigProvider.select((config) => config.viewer.tvShowDateTime));
+    final tvDateBottomOffset = ref.watch(appConfigProvider.select((config) => config.viewer.tvDateBottomOffset));
+    final tvDateTimeSingleLine = ref.watch(appConfigProvider.select((config) => config.viewer.tvDateTimeSingleLine));
     final currentAsset = ref.watch(assetViewerProvider.select((s) => s.currentAsset));
     const topBar = ViewerTopAppBar();
 
@@ -737,23 +740,9 @@ class _AssetViewerState extends ConsumerState<AssetViewer> {
             // TV: keep photo metadata readable but out of the middle of the image.
             // The normal mobile/desktop title is left unchanged, and the date disappears with the controls.
             if (tvMode && showTvPhotoDateTime && showingControls && !showingDetails && currentAsset?.isImage == true)
-              Positioned(
-                left: 0,
-                bottom: 64,
-                child: SafeArea(
-                  top: false,
-                  right: false,
-                  minimum: const EdgeInsets.only(left: 16, bottom: 8),
-                  child: IgnorePointer(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        child: ViewerAssetDateTime(asset: currentAsset!, alignLeft: true),
-                      ),
-                    ),
-                  ),
-                ),
+              TvPhotoDateOverlay(
+                bottomOffset: tvDateBottomOffset,
+                child: ViewerAssetDateTime(asset: currentAsset!, alignLeft: true, singleLine: tvDateTimeSingleLine),
               ),
             // Immuch360 Desktop: previous and next for the mouse, which cannot swipe (desktop/window/hover_chevrons.dart)
             if (CurrentPlatform.isDesktop && !showingDetails)
