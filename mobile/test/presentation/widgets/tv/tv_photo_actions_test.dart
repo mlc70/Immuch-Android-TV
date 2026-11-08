@@ -159,7 +159,8 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.select);
     await tester.pumpAndSettle();
     expect(find.text('Manage Albums'), findsOneWidget);
-    expect(find.text('Done'), findsNothing);
+    // Success feedback may say Done; it must not become a navigation row.
+    expect(find.widgetWithText(ListTile, 'Done'), findsNothing);
     expect(find.text('Alpha'), findsOneWidget);
     await tester.sendKeyEvent(LogicalKeyboardKey.select);
     await tester.pumpAndSettle();
