@@ -1,5 +1,6 @@
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:ffi/ffi.dart';
@@ -101,23 +102,67 @@ void main() {
   });
 
   test('codec retains its descriptor throughout frame decoding', () async {
-    final bytes = await File('assets/feature_message/slideshow.webp').readAsBytes();
+    // A real two-frame GIF: red, then blue. A still-image codec need not
+    // support requesting another frame after its sole decoded image is disposed.
+    final bytes = Uint8List.fromList([
+      ...'GIF89a'.codeUnits,
+      1,
+      0,
+      1,
+      0,
+      0x80,
+      0,
+      0,
+      255,
+      0,
+      0,
+      0,
+      0,
+      255,
+      for (final code in [0x44, 0x4c]) ...[
+        0x21,
+        0xf9,
+        4,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0x2c,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        2,
+        2,
+        code,
+        1,
+        0,
+      ],
+      0x3b,
+    ]);
     final pointer = malloc<Uint8>(bytes.length)..asTypedList(bytes.length).setAll(0, bytes);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockDecodedMessageHandler(channel, (_) async {
       return <Object?>[
         <Object?, Object?>{'pointer': pointer.address, 'length': bytes.length},
       ];
     });
-    final codec = await RemoteImageRequest(uri: 'https://example.test/animation').loadCodec();
-    expect(codec, isNotNull);
+    final codec = (await RemoteImageRequest(uri: 'https://example.test/animation').loadCodec())!;
+    expect(codec.frameCount, 2);
     try {
       for (var i = 0; i < 2; i++) {
-        final frame = await codec!.getNextFrame();
-        expect(frame.image.width, greaterThan(0));
+        final frame = await codec.getNextFrame();
+        final pixels = await frame.image.toByteData();
+        expect(pixels!.buffer.asUint8List().take(4).toList(), i == 0 ? [255, 0, 0, 255] : [0, 0, 255, 255]);
         frame.image.dispose();
       }
     } finally {
-      codec?.dispose();
+      codec.dispose();
     }
   });
 
