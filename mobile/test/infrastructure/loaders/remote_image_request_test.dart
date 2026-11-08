@@ -1,5 +1,6 @@
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:ffi/ffi.dart';
@@ -98,6 +99,96 @@ void main() {
     expect(image.width, 1206);
     expect(image.height, 1819);
     image.dispose();
+  });
+
+  test('codec retains its descriptor throughout frame decoding', () async {
+    // A real two-frame GIF: red, then blue. A still-image codec need not
+    // support requesting another frame after its sole decoded image is disposed.
+    final bytes = Uint8List.fromList([
+      ...'GIF89a'.codeUnits,
+      1,
+      0,
+      1,
+      0,
+      0x80,
+      0,
+      0,
+      255,
+      0,
+      0,
+      0,
+      0,
+      255,
+      for (final code in [0x44, 0x4c]) ...[
+        0x21,
+        0xf9,
+        4,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0x2c,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        2,
+        2,
+        code,
+        1,
+        0,
+      ],
+      0x3b,
+    ]);
+    final pointer = malloc<Uint8>(bytes.length)..asTypedList(bytes.length).setAll(0, bytes);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockDecodedMessageHandler(channel, (_) async {
+      return <Object?>[
+        <Object?, Object?>{'pointer': pointer.address, 'length': bytes.length},
+      ];
+    });
+    final codec = (await RemoteImageRequest(uri: 'https://example.test/animation').loadCodec())!;
+    expect(codec.frameCount, 2);
+    try {
+      for (var i = 0; i < 2; i++) {
+        final frame = await codec.getNextFrame();
+        final pixels = await frame.image.toByteData();
+        expect(pixels!.buffer.asUint8List().take(4).toList(), i == 0 ? [255, 0, 0, 255] : [0, 0, 255, 255]);
+        frame.image.dispose();
+      }
+    } finally {
+      codec.dispose();
+    }
+  });
+
+  test('corrupt encoded data reports an error rather than retaining a pending load', () async {
+    final pointer = malloc<Uint8>(4)..asTypedList(4).fillRange(0, 4, 0);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockDecodedMessageHandler(channel, (_) async {
+      return <Object?>[
+        <Object?, Object?>{'pointer': pointer.address, 'length': 4},
+      ];
+    });
+    final request = RemoteImageRequest(uri: 'https://example.test/corrupt');
+    await expectLater(request.loadCodec(), throwsA(isA<Exception>()));
+  });
+
+  test('native pixel frames remain usable after codec and descriptor cleanup', () async {
+    final pointer = malloc<Uint8>(16)..asTypedList(16).fillRange(0, 16, 255);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockDecodedMessageHandler(channel, (_) async {
+      return <Object?>[
+        <Object?, Object?>{'pointer': pointer.address, 'width': 2, 'height': 2, 'rowBytes': 8},
+      ];
+    });
+    final info = await RemoteImageRequest(uri: 'https://example.test/pixels')
+        .load((_, {getTargetSize}) => throw UnimplementedError());
+    expect(info?.image.width, 2);
+    expect(info?.image.height, 2);
+    info?.dispose();
   });
 
   test('uses the decode size in the provider cache key', () {
